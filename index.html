@@ -4,112 +4,108 @@
     <meta charset="UTF-8">
     <title>big orange 4</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #7c2d12; font-family: 'courier new', monospace; color: #fdba74; text-transform: lowercase; }
-        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
-        canvas { display: block; background: #9a3412; }
-        .death-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ffedd5; opacity: 0; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #431407; font-family: 'courier new', monospace; color: #fb923c; text-transform: lowercase; }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
+        #room-id { font-size: 24px; font-weight: bold; color: #ffedd5; }
+        canvas { display: block; background: #7c2d12; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <div id="room-title">room: 1/100</div>
-        <div>deaths: <span id="death-count">0</span></div>
-        <div style="margin-top:5px; opacity:0.8;">space to double jump | r to restart room</div>
+        <div id="room-id">room: 1 / 100</div>
+        <div>deaths: <span id="deaths">0</span></div>
+        <div style="margin-top: 10px; opacity: 0.8;">space: double jump | r: reset</div>
     </div>
-    <div id="flash" class="death-flash"></div>
-    <canvas id="game"></canvas>
+    <canvas id="g"></canvas>
 
     <script>
-        const canvas = document.getElementById('game');
+        const canvas = document.getElementById('g');
         const ctx = canvas.getContext('2d');
-        const roomText = document.getElementById('room-title');
-        const deathText = document.getElementById('death-count');
-        const flash = document.getElementById('flash');
+        const roomEl = document.getElementById('room-id');
+        const deathEl = document.getElementById('deaths');
 
         let currentRoom = 1;
         let deaths = 0;
         let frame = 0;
 
         const p = {
-            x: 50, y: 300, w: 30, h: 30, 
-            vx: 0, vy: 0, speed: 0.7, jump: 11,
-            rot: 0, grounded: false, jumpsLeft: 2
+            x: 50, y: 300, w: 30, h: 30,
+            vx: 0, vy: 0, speed: 0.7, jump: 12,
+            rot: 0, jumps: 2, grounded: false,
+            moveLeft: false, moveRight: false
+        };
+
+        // hard-coded level data
+        // [x, y, width, hazardType(0:none, 1:saw, 2:spikes)]
+        const levelData = {
+            1: [[0, 500, 400, 0], [450, 500, 300, 0], [800, 500, 400, 0]],
+            2: [[0, 500, 200, 0], [300, 400, 100, 1], [500, 300, 100, 0], [750, 400, 200, 2]],
+            3: [[0, 500, 150, 0], [500, 500, 50, 1], [1000, 500, 100, 0]], // the impossible leap
+            4: [[0, 500, 100, 0], [200, 200, 40, 0], [400, 500, 40, 2], [600, 200, 40, 0]],
+            5: [[0, 500, 300, 2], [350, 450, 100, 1], [500, 350, 100, 1], [700, 250, 100, 1]]
         };
 
         let platforms = [];
         let hazards = [];
-        let goal = { x: 0, y: 0, w: 50, h: 100 };
+        let goalX = 1200;
 
-        function initRoom(num) {
+        function buildLevel(n) {
             platforms = [];
             hazards = [];
             p.x = 50; p.y = 300; p.vx = 0; p.vy = 0;
-            roomText.innerText = `room: ${num}/100`;
+            roomEl.innerText = `room: ${n} / 100`;
 
-            // starting block
-            platforms.push({ x: 0, y: 500, w: 150, h: 400 });
+            // if level isn't explicitly defined, use a generated hard-coded pattern
+            const data = levelData[n] || [
+                [0, 500, 150, 0],
+                [300, 500 - (n * 2), 100, n % 2 === 0 ? 1 : 2],
+                [600, 400, 80, 1],
+                [900, 500 - (n % 10 * 10), 120, 2]
+            ];
 
-            // chaotic generation
-            for (let i = 0; i < 8; i++) {
-                let rx = 200 + (i * 220);
-                // "impossible" logic: some heights are way too high, some are ground level
-                let ry = 150 + (Math.random() * 500); 
-                let rw = 40 + (Math.random() * 150);
+            data.forEach(d => {
+                platforms.push({ x: d[0], y: d[1], w: d[2], h: 30 });
+                if (d[3] === 1) hazards.push({ type: 'saw', x: d[0] + d[2]/2, y: d[1] - 40, r: 20, rot: 0 });
+                if (d[3] === 2) hazards.push({ type: 'spike', x: d[0], y: d[1] - 10, w: d[2] });
+            });
 
-                platforms.push({ x: rx, y: ry, w: rw, h: 20 });
-
-                // random orange hazards
-                if (Math.random() > 0.4) {
-                    hazards.push({ 
-                        x: rx + rw/2, 
-                        y: ry - 30, 
-                        r: 15 + Math.random() * 20, 
-                        type: 'saw', 
-                        rot: 0 
-                    });
-                }
-                if (Math.random() > 0.7) {
-                    hazards.push({ x: rx, y: ry - 10, w: rw, type: 'spikes' });
-                }
-            }
-
-            goal = { x: 2000, y: 200 + Math.random() * 400, w: 60, h: 120 };
+            goalX = data[data.length - 1][0] + 300;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
 
-        const keys = {};
         window.onkeydown = e => {
-            keys[e.code] = true;
-            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
-                if (p.jumpsLeft > 0) {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') p.moveLeft = true;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') p.moveRight = true;
+            if (e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') {
+                if (p.jumps > 0) {
                     p.vy = -p.jump;
-                    p.jumpsLeft--;
+                    p.jumps--;
                     p.grounded = false;
                 }
             }
-            if (e.code === 'KeyR') die();
+            if (e.code === 'KeyR') reset();
         };
-        window.onkeyup = e => keys[e.code] = false;
 
-        function die() {
+        window.onkeyup = e => {
+            if (e.code === 'KeyA' || e.code === 'ArrowLeft') p.moveLeft = false;
+            if (e.code === 'KeyD' || e.code === 'ArrowRight') p.moveRight = false;
+        };
+
+        function reset() {
             deaths++;
-            deathText.innerText = deaths;
-            flash.style.opacity = '0.4';
-            setTimeout(() => flash.style.opacity = '0', 50);
-            initRoom(currentRoom);
+            deathEl.innerText = deaths;
+            buildLevel(currentRoom);
         }
 
         function update() {
-            frame++;
-            if (keys['KeyA'] || keys['ArrowLeft']) p.vx -= p.speed;
-            if (keys['KeyD'] || keys['ArrowRight']) p.vx += p.speed;
-            
+            if (p.moveLeft) p.vx -= p.speed;
+            if (p.moveRight) p.vx += p.speed;
             p.vx *= 0.9;
-            p.vy += 0.5;
+            p.vy += 0.6;
             p.x += p.vx;
             p.y += p.vy;
-            p.rot += p.vx * 0.05;
+            p.rot += p.vx * 0.06;
 
             p.grounded = false;
             platforms.forEach(plat => {
@@ -118,43 +114,41 @@
                     p.y = plat.y - p.h;
                     p.vy = 0;
                     p.grounded = true;
-                    p.jumpsLeft = 2; // reset double jump
+                    p.jumps = 2;
                 }
             });
 
             hazards.forEach(h => {
                 if (h.type === 'saw') {
-                    h.rot += 0.15;
-                    if (Math.hypot(p.x + 15 - h.x, p.y + 15 - h.y) < h.r + 12) die();
-                }
-                if (h.type === 'spikes') {
-                    if (p.x + p.w > h.x && p.x < h.x + h.w && p.y + p.h > h.y && p.y < h.y + 10) die();
+                    h.rot += 0.2;
+                    let dx = (p.x + 15) - h.x;
+                    let dy = (p.y + 15) - h.y;
+                    if (Math.sqrt(dx*dx + dy*dy) < h.r + 10) reset();
+                } else {
+                    if (p.x + p.w > h.x && p.x < h.x + h.w && p.y + p.h > h.y && p.y < h.y + 10) reset();
                 }
             });
 
-            if (p.x > goal.x) {
+            if (p.x > goalX) {
                 currentRoom++;
-                initRoom(currentRoom);
+                buildLevel(currentRoom);
             }
 
-            if (p.y > canvas.height + 100) die();
+            if (p.y > canvas.height + 200) reset();
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
             ctx.save();
-            ctx.translate(-p.x + canvas.width/4, 0);
+            ctx.translate(-p.x + 200, 0);
 
             // orange platforms
             ctx.fillStyle = '#ea580c';
-            platforms.forEach(plat => {
-                ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
-            });
+            platforms.forEach(plat => ctx.fillRect(plat.x, plat.y, plat.w, plat.h));
 
             // orange goal
             ctx.fillStyle = '#fb923c';
-            ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+            ctx.fillRect(goalX, 200, 60, 400);
 
             // orange hazards
             hazards.forEach(h => {
@@ -163,51 +157,45 @@
                     ctx.save();
                     ctx.translate(h.x, h.y);
                     ctx.rotate(h.rot);
-                    for(let i=0; i<10; i++) {
-                        ctx.rotate(Math.PI/5);
-                        ctx.fillRect(0, -h.r-8, 4, 12);
+                    for(let i=0; i<8; i++) {
+                        ctx.rotate(Math.PI/4);
+                        ctx.fillRect(-2, -h.r - 8, 4, 12);
                     }
                     ctx.beginPath(); ctx.arc(0,0, h.r, 0, Math.PI*2); ctx.fill();
                     ctx.restore();
-                }
-                if (h.type === 'spikes') {
-                    for(let i=0; i<h.w; i+=12) {
+                } else {
+                    for(let i=0; i<h.w; i+=15) {
                         ctx.beginPath();
-                        ctx.moveTo(h.x + i, h.y + 10);
-                        ctx.lineTo(h.x + i + 6, h.y - 5);
-                        ctx.lineTo(h.x + i + 12, h.y + 10);
+                        ctx.moveTo(h.x+i, h.y+10); ctx.lineTo(h.x+i+7, h.y-10); ctx.lineTo(h.x+i+15, h.y+10);
                         ctx.fill();
                     }
                 }
             });
 
-            // the orange with a smile
+            // the smiling orange
             ctx.save();
             ctx.translate(p.x + 15, p.y + 15);
             ctx.rotate(p.rot);
             ctx.fillStyle = '#f97316';
             ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
-            // eyes
-            ctx.fillStyle = '#451a03';
-            ctx.beginPath(); ctx.arc(-5, -4, 2, 0, Math.PI*2); ctx.fill();
-            ctx.beginPath(); ctx.arc(5, -4, 2, 0, Math.PI*2); ctx.fill();
-            // smile
-            ctx.beginPath();
-            ctx.arc(0, 2, 7, 0.2 * Math.PI, 0.8 * Math.PI);
-            ctx.stroke();
+            ctx.fillStyle = '#431407';
+            ctx.beginPath(); ctx.arc(-6, -4, 2, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.arc(6, -4, 2, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#431407';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(0, 2, 8, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
             ctx.restore();
 
             ctx.restore();
         }
 
-            // check if room is "impossible" and display warning if needed
         function loop() {
             update();
             draw();
             requestAnimationFrame(loop);
         }
 
-        initRoom(1);
+        buildLevel(1);
         loop();
     </script>
 </body>
