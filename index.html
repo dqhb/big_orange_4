@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>big orange 4</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #0f172a; font-family: 'courier new', monospace; color: #fb923c; text-transform: lowercase; }
+        #ui { position: absolute; top: 20px; left: 20px; pointer-events: none; z-index: 10; }
+        #room-title { font-size: 2rem; font-weight: bold; margin-bottom: 5px; }
+        canvas { display: block; background: #1e293b; }
+        .death-flash { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #ef4444; opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="room-title">room: 1/100</div>
+        <div>deaths: <span id="death-count">0</span></div>
+        <div style="margin-top:5px; opacity:0.7;">wasd to roll | space to squeeze</div>
+    </div>
+    <div id="flash" class="death-flash"></div>
+    <canvas id="game"></canvas>
+
+    <script>
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        const roomText = document.getElementById('room-title');
+        const deathText = document.getElementById('death-count');
+        const flash = document.getElementById('flash');
+
+        let currentRoom = 1;
+        let deaths = 0;
+        let frame = 0;
+
+        const p = {
+            x: 50, y: 300, w: 24, h: 24, 
+            vx: 0, vy: 0, speed: 0.6, jump: 11,
+            rot: 0, squash: 1, stretch: 1, grounded: false
+        };
+
+        let platforms = [];
+        let hazards = []; // saws, spikes, etc.
+        let goal = { x: 0, y: 0, w: 40, h: 60 };
+
+        function initRoom(num) {
+            platforms = [];
+            hazards = [];
+            p.x = 50; p.y = 300; p.vx = 0; p.vy = 0;
+            roomText.innerText = `room: ${num}/100`;
+
+            // floor
+            platforms.push({ x: 0, y: 550, w: 200, h: 50, type: 'block' });
+            
+            // procedural generation based on room number
+            for (let i = 0; i < 5; i++) {
+                let rx = 200 + (i * 200);
+                let ry = 400 - (Math.sin(num + i) * 150);
+                
+                // platforms
+                platforms.push({ 
+                    x: rx, y: ry, w: 120, h: 20, 
+                    type: num > 10 && i % 3 === 0 ? 'moving' : 'block',
+                    originX: rx, range: 100 
+                });
+
+                // hazards
+                if (num > 2) {
+                    if (i % 2 === 0) {
+                        hazards.push({ x: rx + 50, y: ry - 30, r: 20, type: 'saw', rot: 0 });
+                    }
+                    if (num > 5 && i === 1) {
+                        hazards.push({ x: rx, y: ry - 10, w: 120, type: 'spikes', state: 0 });
+                    }
+                }
+            }
+
+            // slopes (for big orange 4 physics)
+            platforms.push({ x: 1200, y: 550, w: 300, h: 100, type: 'slope', dir: -1 });
+
+            goal = { x: 1500, y: 450, w: 40, h: 100 };
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        const keys = {};
+        window.onkeydown = e => keys[e.code] = true;
+        window.onkeyup = e => keys[e.code] = false;
+
+        function die() {
+            deaths++;
+            deathText.innerText = deaths;
+            flash.style.opacity = '0.5';
+            setTimeout(() => flash.style.opacity = '0', 100);
+            initRoom(currentRoom);
+        }
+
+        function update() {
+            frame++;
+            if (keys['KeyA'] || keys['ArrowLeft']) p.vx -= p.speed;
+            if (keys['KeyD'] || keys['ArrowRight']) p.vx += p.speed;
+            
+            p.vx *= 0.9;
+            p.vy += 0.5; // gravity
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vx * 0.05;
+
+            // jump & squash logic
+            if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && p.grounded) {
+                p.vy = -p.jump;
+                p.grounded = false;
+                p.stretch = 1.4; p.squash = 0.7;
+            }
+
+            p.stretch += (1 - p.stretch) * 0.1;
+            p.squash += (1 - p.squash) * 0.1;
+
+            p.grounded = false;
+            platforms.forEach(plat => {
+                // moving platform logic
+                if (plat.type === 'moving') {
+                    plat.x = plat.originX + Math.sin(frame * 0.02) * plat.range;
+                }
+
+                // collision
+                if (p.x + p.w > plat.x && p.x < plat.x + plat.w &&
+                    p.y + p.h > plat.y && p.y + p.h < plat.y + plat.h && p.vy >= 0) {
+                    
+                    if (plat.type === 'slope') {
+                        let relX = (p.x - plat.x) / plat.w;
+                        let targetY = plat.y + (plat.dir === -1 ? relX * plat.h : (1 - relX) * plat.h);
+                        if (p.y + p.h > targetY) {
+                            p.y = targetY - p.h;
+                            p.vy = 0; p.grounded = true;
+                        }
+                    } else {
+                        p.y = plat.y - p.h;
+                        p.vy = 0;
+                        p.grounded = true;
+                    }
+                }
+            });
+
+            hazards.forEach(h => {
+                if (h.type === 'saw') {
+                    h.rot += 0.2;
+                    if (Math.hypot(p.x + 12 - h.x, p.y + 12 - h.y) < h.r + 10) die();
+                }
+                if (h.type === 'spikes') {
+                    if (p.x + p.w > h.x && p.x < h.x + h.w && p.y + p.h > h.y) die();
+                }
+            });
+
+            if (p.x > goal.x) {
+                currentRoom++;
+                if (currentRoom > 100) {
+                    alert("you escaped the citrus chambers!");
+                    currentRoom = 1;
+                }
+                initRoom(currentRoom);
+            }
+
+            if (p.y > canvas.height) die();
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // camera follow
+            ctx.save();
+            ctx.translate(-p.x + 200, 0);
+
+            // draw platforms
+            ctx.fillStyle = '#334155';
+            platforms.forEach(plat => {
+                if (plat.type === 'slope') {
+                    ctx.beginPath();
+                    ctx.moveTo(plat.x, plat.y + plat.h);
+                    ctx.lineTo(plat.x + plat.w, plat.y + plat.h);
+                    if (plat.dir === -1) ctx.lineTo(plat.x + plat.w, plat.y);
+                    else ctx.lineTo(plat.x, plat.y);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(plat.x, plat.y, plat.w, plat.h);
+                }
+            });
+
+            // draw goal
+            ctx.fillStyle = '#22c55e';
+            ctx.fillRect(goal.x, goal.y, goal.w, goal.h);
+
+            // draw hazards
+            hazards.forEach(h => {
+                if (h.type === 'saw') {
+                    ctx.save();
+                    ctx.translate(h.x, h.y);
+                    ctx.rotate(h.rot);
+                    ctx.fillStyle = '#94a3b8';
+                    for(let i=0; i<8; i++) {
+                        ctx.rotate(Math.PI/4);
+                        ctx.fillRect(0, -h.r-5, 5, 10);
+                    }
+                    ctx.beginPath(); ctx.arc(0,0, h.r, 0, Math.PI*2); ctx.fill();
+                    ctx.restore();
+                }
+                if (h.type === 'spikes') {
+                    ctx.fillStyle = '#ef4444';
+                    for(let i=0; i<h.w; i+=10) {
+                        ctx.beginPath();
+                        ctx.moveTo(h.x + i, h.y + 10);
+                        ctx.lineTo(h.x + i + 5, h.y);
+                        ctx.lineTo(h.x + i + 10, h.y + 10);
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // draw player (big orange)
+            ctx.save();
+            ctx.translate(p.x + 12, p.y + 12);
+            ctx.rotate(p.rot);
+            ctx.scale(p.squash, p.stretch);
+            ctx.fillStyle = '#f97316';
+            ctx.beginPath(); ctx.arc(0, 0, 12, 0, Math.PI*2); ctx.fill();
+            // orange detail
+            ctx.fillStyle = '#fb923c';
+            ctx.beginPath(); ctx.arc(4, -4, 3, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        function loop() {
+            update();
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        initRoom(1);
+        loop();
+    </script>
+</body>
+</html>
