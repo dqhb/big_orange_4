@@ -30,46 +30,48 @@
 
         const p = {
             x: 50, y: 300, w: 30, h: 30,
-            vx: 0, vy: 0, speed: 0.7, jump: 12,
+            vx: 0, vy: 0, speed: 0.7, jump: 11.5,
             rot: 0, jumps: 2, grounded: false,
             moveLeft: false, moveRight: false
         };
 
-        // hard-coded level data
-        // [x, y, width, hazardType(0:none, 1:saw, 2:spikes)]
-        const levelData = {
-            1: [[0, 500, 400, 0], [450, 500, 300, 0], [800, 500, 400, 0]],
-            2: [[0, 500, 200, 0], [300, 400, 100, 1], [500, 300, 100, 0], [750, 400, 200, 2]],
-            3: [[0, 500, 150, 0], [500, 500, 50, 1], [1000, 500, 100, 0]], // the impossible leap
-            4: [[0, 500, 100, 0], [200, 200, 40, 0], [400, 500, 40, 2], [600, 200, 40, 0]],
-            5: [[0, 500, 300, 2], [350, 450, 100, 1], [500, 350, 100, 1], [700, 250, 100, 1]]
-        };
-
         let platforms = [];
         let hazards = [];
-        let goalX = 1200;
+        let goalX = 2000;
 
+        // the 100-level architect
         function buildLevel(n) {
             platforms = [];
             hazards = [];
-            p.x = 50; p.y = 300; p.vx = 0; p.vy = 0;
+            p.x = 60; p.y = 300; p.vx = 0; p.vy = 0;
             roomEl.innerText = `room: ${n} / 100`;
 
-            // if level isn't explicitly defined, use a generated hard-coded pattern
-            const data = levelData[n] || [
-                [0, 500, 150, 0],
-                [300, 500 - (n * 2), 100, n % 2 === 0 ? 1 : 2],
-                [600, 400, 80, 1],
-                [900, 500 - (n % 10 * 10), 120, 2]
-            ];
+            // fixed starting floor
+            platforms.push({ x: 0, y: 500, w: 160, h: 400 });
 
-            data.forEach(d => {
-                platforms.push({ x: d[0], y: d[1], w: d[2], h: 30 });
-                if (d[3] === 1) hazards.push({ type: 'saw', x: d[0] + d[2]/2, y: d[1] - 40, r: 20, rot: 0 });
-                if (d[3] === 2) hazards.push({ type: 'spike', x: d[0], y: d[1] - 10, w: d[2] });
-            });
+            // deterministic design for all 100 rooms
+            // uses n to shift coordinates so every level is "pre-made" and different
+            for (let i = 1; i <= 6; i++) {
+                let x = i * (220 + (n % 5 * 10)); // varying gaps
+                let y = 450 - (Math.sin(n * i) * 100) - (i * 20); 
+                let w = 70 + (n % 3 * 20);
+                
+                // ensure it's not "impossible" - cap the height and gaps
+                y = Math.max(150, Math.min(y, 550));
+                
+                platforms.push({ x, y, w, h: 30 });
 
-            goalX = data[data.length - 1][0] + 300;
+                // hazard placement
+                if ((n + i) % 4 === 0) {
+                    hazards.push({ type: 'saw', x: x + w/2, y: y - 45, r: 18, rot: 0 });
+                } else if ((n + i) % 3 === 0) {
+                    // rogue spike logic: random index in the row is taller
+                    let rogueIdx = Math.floor((n * i) % (w / 15));
+                    hazards.push({ type: 'spike', x: x, y: y - 10, w: w, rogue: rogueIdx });
+                }
+            }
+
+            goalX = 1700;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
@@ -102,7 +104,7 @@
             if (p.moveLeft) p.vx -= p.speed;
             if (p.moveRight) p.vx += p.speed;
             p.vx *= 0.9;
-            p.vy += 0.6;
+            p.vy += 0.55;
             p.x += p.vx;
             p.y += p.vy;
             p.rot += p.vx * 0.06;
@@ -125,12 +127,18 @@
                     let dy = (p.y + 15) - h.y;
                     if (Math.sqrt(dx*dx + dy*dy) < h.r + 10) reset();
                 } else {
-                    if (p.x + p.w > h.x && p.x < h.x + h.w && p.y + p.h > h.y && p.y < h.y + 10) reset();
+                    // spike collision (including rogue tall spike)
+                    for (let i = 0; i < h.w; i += 15) {
+                        let isRogue = (i / 15) === h.rogue;
+                        let sH = isRogue ? 25 : 12;
+                        if (p.x + p.w > h.x + i && p.x < h.x + i + 15 && 
+                            p.y + p.h > h.y - (isRogue ? 15 : 0) && p.y < h.y + 10) reset();
+                    }
                 }
             });
 
             if (p.x > goalX) {
-                currentRoom++;
+                currentRoom = (currentRoom % 100) + 1;
                 buildLevel(currentRoom);
             }
 
@@ -142,15 +150,15 @@
             ctx.save();
             ctx.translate(-p.x + 200, 0);
 
-            // orange platforms
+            // platforms
             ctx.fillStyle = '#ea580c';
             platforms.forEach(plat => ctx.fillRect(plat.x, plat.y, plat.w, plat.h));
 
-            // orange goal
+            // goal
             ctx.fillStyle = '#fb923c';
-            ctx.fillRect(goalX, 200, 60, 400);
+            ctx.fillRect(goalX, 100, 60, 500);
 
-            // orange hazards
+            // hazards
             hazards.forEach(h => {
                 ctx.fillStyle = '#f97316';
                 if (h.type === 'saw') {
@@ -165,14 +173,17 @@
                     ctx.restore();
                 } else {
                     for(let i=0; i<h.w; i+=15) {
+                        let isRogue = (i / 15) === h.rogue;
                         ctx.beginPath();
-                        ctx.moveTo(h.x+i, h.y+10); ctx.lineTo(h.x+i+7, h.y-10); ctx.lineTo(h.x+i+15, h.y+10);
+                        ctx.moveTo(h.x+i, h.y+10); 
+                        ctx.lineTo(h.x+i+7, h.y-(isRogue ? 20 : 10)); 
+                        ctx.lineTo(h.x+i+15, h.y+10);
                         ctx.fill();
                     }
                 }
             });
 
-            // the smiling orange
+            // smiling orange
             ctx.save();
             ctx.translate(p.x + 15, p.y + 15);
             ctx.rotate(p.rot);
