@@ -14,9 +14,11 @@
         #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(43, 15, 7, 0.98); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; width: 220px; }
         .tool-btn { background: #ea580c; color: white; border: none; padding: 6px; cursor: pointer; margin: 2px; font-size: 0.75rem; width: 45%; border-radius: 4px; }
         .tool-btn.active { background: #fde047; color: #431407; font-weight: bold; }
-        .share-btn { background: #8b5cf6 !important; width: 94% !important; margin-top: 5px; font-weight: bold; }
         .inspector { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ea580c; font-size: 0.8rem; }
-        .del-btn { background: #ef4444; width: 94%; margin-top: 10px; font-weight: bold; }
+        .del-btn { background: #ef4444 !important; color: white; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+        .full-width { width: 94% !important; margin-top: 5px; }
+        #level-list-container { background:rgba(0,0,0,0.3); padding:15px; border-radius:8px; width:320px; margin-top:15px; max-height: 300px; overflow-y: auto; }
+        .level-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.1); margin-bottom: 8px; padding: 10px; border-radius: 5px; }
         input[type=range] { width: 100%; accent-color: #fde047; }
         canvas { display: block; }
     </style>
@@ -28,7 +30,7 @@
         <button class="menu-btn" onclick="startNewLevel()">new game</button>
         <button class="menu-btn" onclick="enterGameCode()">enter game code</button>
         <button class="menu-btn" onclick="toggleOpenList()">open saved</button>
-        <div id="level-list-container" class="hidden" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:5px; width:280px; margin-top:10px;"></div>
+        <div id="level-list-container" class="hidden"></div>
     </div>
 
     <div id="editor-screen">
@@ -41,10 +43,11 @@
                 <button class="tool-btn" onclick="setTool(this, 'spike')">spike</button>
                 <button class="tool-btn" onclick="setTool(this, 'goal')">end</button>
                 <button class="tool-btn" onclick="setTool(this, 'start')">start</button>
-                <button class="tool-btn" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c; margin-top:5px;">edit / move</button>
+                <button class="tool-btn active" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c; margin-top:5px;">edit / move</button>
                 <hr style="border:0; border-top:1px solid #431407; margin: 10px 0;">
                 <button class="tool-btn" onclick="saveLevel()" style="background:#3b82f6">save</button>
-                <button class="tool-btn share-btn" onclick="getGameCode()">get code</button>
+                <button class="tool-btn" onclick="getGameCode()" style="background:#8b5cf6">get code</button>
+                <button class="tool-btn del-btn full-width" onclick="clearCanvas()">clear canvas</button>
             </div>
 
             <div id="inspector" class="inspector hidden">
@@ -52,7 +55,7 @@
                 <input type="range" id="scale-range" min="20" max="600" value="40" oninput="updateSelected()">
                 <div>speed</div>
                 <input type="range" id="speed-range" min="-20" max="20" value="5" oninput="updateSelected()">
-                <button class="tool-btn del-btn" onclick="deleteObj()">delete</button>
+                <button class="tool-btn del-btn full-width" onclick="deleteObj()">delete object</button>
             </div>
             
             <button class="tool-btn" id="play-btn" onclick="togglePlay()" style="background:#22c55e; width:94%; margin-top:10px; font-weight:bold;">play test</button>
@@ -68,14 +71,14 @@
 
         let mode = 'edit';
         let isSharedMode = false;
-        let currentTool = 'block';
+        let currentTool = 'select';
         let camX = 0, camY = 0;
         let selectedObj = null;
         let level = { platforms: [], hazards: [], goals: [], start: null };
         const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0, w: 30, h: 30 };
 
         function startNewLevel() {
-            level = { platforms: [], hazards: [], goals: [], start: null };
+            clearCanvas();
             isSharedMode = false;
             document.getElementById('editor-tools').classList.remove('hidden');
             document.getElementById('home-screen').classList.add('hidden');
@@ -84,14 +87,21 @@
             resize();
         }
 
+        function clearCanvas() {
+            if(level.platforms.length > 0 && !confirm("Wipe the whole level?")) return;
+            level = { platforms: [], hazards: [], goals: [], start: null };
+            selectedObj = null;
+            document.getElementById('inspector').classList.add('hidden');
+        }
+
         function getGameCode() {
             const code = btoa(JSON.stringify(level));
             navigator.clipboard.writeText(code);
-            alert("level code copied to clipboard");
+            alert("Level code copied! Send it to a friend.");
         }
 
         function enterGameCode() {
-            const code = prompt("paste the game code here:");
+            const code = prompt("Paste level code:");
             if (!code) return;
             try {
                 level = JSON.parse(atob(code));
@@ -100,8 +110,7 @@
                 document.getElementById('editor-screen').style.display = 'block';
                 document.getElementById('editor-tools').classList.add('hidden');
                 document.getElementById('inspector').classList.add('hidden');
-                togglePlay(); 
-                resize();
+                togglePlay(); resize();
             } catch(e) { alert("Invalid code!"); }
         }
 
@@ -111,19 +120,41 @@
             const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
             saves[name] = level;
             localStorage.setItem('bo4_levels', JSON.stringify(saves));
+            alert("Saved!");
         }
 
         function toggleOpenList() {
             const container = document.getElementById('level-list-container');
             container.classList.toggle('hidden');
+            renderLevelList();
+        }
+
+        function renderLevelList() {
+            const container = document.getElementById('level-list-container');
             const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
             container.innerHTML = '';
-            Object.keys(saves).forEach(k => {
+            const keys = Object.keys(saves);
+            if(keys.length === 0) { container.innerHTML = 'no levels found'; return; }
+            keys.forEach(k => {
                 const div = document.createElement('div');
-                div.style.display = 'flex'; div.style.justifyContent = 'space-between'; div.style.marginBottom = '5px';
-                div.innerHTML = `<span>${k}</span><button onclick="loadLevel('${k}')">load</button>`;
+                div.className = 'level-item';
+                div.innerHTML = `
+                    <span style="font-weight:bold">${k}</span>
+                    <div>
+                        <button onclick="loadLevel('${k}')" style="margin-right:5px">load</button>
+                        <button class="del-btn" onclick="deleteSavedLevel('${k}')">X</button>
+                    </div>
+                `;
                 container.appendChild(div);
             });
+        }
+
+        function deleteSavedLevel(name) {
+            if(!confirm(`Permanently delete "${name}"?`)) return;
+            const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
+            delete saves[name];
+            localStorage.setItem('bo4_levels', JSON.stringify(saves));
+            renderLevelList();
         }
 
         function loadLevel(name) {
@@ -245,8 +276,8 @@
                 if(h === selectedObj) { ctx.strokeStyle = "white"; ctx.beginPath(); ctx.arc(h.x, h.y, (h.r||20)+15, 0, Math.PI*2); ctx.stroke(); }
             });
 
-            if(level.start) { ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, GRID, GRID); }
-            ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => ctx.fillRect(g.x, g.y, GRID, GRID));
+            if(level.start) { ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, GRID, GRID); if(level.start === selectedObj) { ctx.strokeStyle="white"; ctx.strokeRect(level.start.x, level.start.y, GRID, GRID); } }
+            ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => { ctx.fillRect(g.x, g.y, GRID, GRID); if(g === selectedObj) { ctx.strokeStyle="white"; ctx.strokeRect(g.x, g.y, GRID, GRID); } });
 
             ctx.save(); ctx.translate(p.x+15, p.y+15); ctx.rotate(p.rot);
             ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
