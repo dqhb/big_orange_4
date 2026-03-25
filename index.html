@@ -10,13 +10,15 @@
         .hidden { display: none !important; }
         h1 { font-size: 5rem; margin: 0; color: #431407; letter-spacing: -2px; }
         .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 0 #9a3412; }
-        .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #9a3412; }
+        .menu-btn:hover { background: #431407; }
         #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(43, 15, 7, 0.98); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; width: 220px; }
         .tool-btn { background: #ea580c; color: white; border: none; padding: 6px; cursor: pointer; margin: 2px; font-size: 0.75rem; width: 45%; border-radius: 4px; }
         .tool-btn.active { background: #fde047; color: #431407; font-weight: bold; }
+        .save-btn { background: #3b82f6 !important; width: 94% !important; margin-top: 5px; font-weight: bold; }
         .inspector { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ea580c; font-size: 0.8rem; }
         .del-btn { background: #ef4444; width: 94%; margin-top: 10px; font-weight: bold; }
         input[type=range] { width: 100%; accent-color: #fde047; }
+        .level-item { display: flex; justify-content: space-between; align-items: center; background: #ea580c; margin: 5px 0; padding: 8px; border-radius: 4px; width: 100%; box-sizing: border-box; }
         canvas { display: block; }
     </style>
 </head>
@@ -26,7 +28,7 @@
         <h1>big orange 4</h1>
         <button class="menu-btn" onclick="startNewLevel()">new game</button>
         <button class="menu-btn" onclick="toggleOpenList()">open game</button>
-        <div id="level-list-container" class="hidden" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:5px; width:250px; margin-top:10px;"></div>
+        <div id="level-list-container" class="hidden" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:5px; width:280px; margin-top:10px;"></div>
     </div>
 
     <div id="editor-screen">
@@ -34,12 +36,16 @@
             <div id="mode-text" style="font-weight:bold; margin-bottom:5px; color:#fb923c;">mode: editing</div>
             <button class="tool-btn active" onclick="setTool(this, 'block')">block</button>
             <button class="tool-btn" onclick="setTool(this, 'saw')">saw</button>
-            <button class="tool-btn" onclick="setTool(this, 'pusher')">pusher</button>
+            <button class="tool-btn" onclick="setTool(this, 'pusher')">beam</button>
             <button class="tool-btn" onclick="setTool(this, 'spike')">spike</button>
-            <button class="tool-btn" onclick="setTool(this, 'goal')">goal</button>
-            <button class="tool-btn" onclick="setTool(this, 'start')">start pos</button>
+            <button class="tool-btn" onclick="setTool(this, 'goal')">end</button>
+            <button class="tool-btn" onclick="setTool(this, 'start')">start</button>
             <button class="tool-btn" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c; margin-top:5px;">edit / move</button>
-            <hr style="border:0; border-top:1px solid #431407;">
+            
+            <hr style="border:0; border-top:1px solid #431407; margin: 10px 0;">
+            
+            <button class="tool-btn save-btn" onclick="saveLevel()">save level</button>
+
             <div id="inspector" class="inspector hidden">
                 <div>size / length</div>
                 <input type="range" id="scale-range" min="20" max="600" value="40" oninput="updateSelected()">
@@ -47,6 +53,7 @@
                 <input type="range" id="speed-range" min="-20" max="20" value="5" oninput="updateSelected()">
                 <button class="tool-btn del-btn" onclick="deleteObj()">delete object</button>
             </div>
+            
             <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e; width:94%; margin-top:10px; font-weight:bold;">play test</button>
             <button class="tool-btn" onclick="exitToMenu()" style="width:94%; opacity:0.7;">exit menu</button>
         </div>
@@ -86,6 +93,43 @@
             mode = (mode === 'edit') ? 'play' : 'edit';
             document.getElementById('mode-text').innerText = "mode: " + mode;
             if(mode === 'play') { p.x = level.start.x + 5; p.y = level.start.y + 5; p.vx = 0; p.vy = 0; }
+        }
+
+        function saveLevel() {
+            const name = prompt("Enter level name:");
+            if (!name) return;
+            const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
+            saves[name] = level;
+            localStorage.setItem('bo4_levels', JSON.stringify(saves));
+            alert("Level saved!");
+        }
+
+        function toggleOpenList() {
+            const container = document.getElementById('level-list-container');
+            container.classList.toggle('hidden');
+            const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
+            container.innerHTML = '';
+            
+            const keys = Object.keys(saves);
+            if(keys.length === 0) {
+                container.innerHTML = '<div style="font-size:0.8rem;">no levels saved yet.</div>';
+                return;
+            }
+
+            keys.forEach(k => {
+                const div = document.createElement('div');
+                div.className = 'level-item';
+                div.innerHTML = `<span>${k}</span><button onclick="loadLevel('${k}')" style="padding:4px; cursor:pointer;">load</button>`;
+                container.appendChild(div);
+            });
+        }
+
+        function loadLevel(name) {
+            const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
+            level = saves[name];
+            document.getElementById('home-screen').classList.add('hidden');
+            document.getElementById('editor-screen').style.display = 'block';
+            resize();
         }
 
         function deleteObj() {
@@ -133,36 +177,25 @@
                 camX += (p.x - canvas.width/2 - camX) * 0.1;
                 camY += (p.y - canvas.height/2 - camY) * 0.1;
 
-                // Platform Collision
                 level.platforms.forEach(plt => {
                     if(p.x+p.w > plt.x && p.x < plt.x+plt.w && p.y+p.h > plt.y && p.y+p.h < plt.y+plt.h && p.vy >= 0) {
                         p.y = plt.y - p.h; p.vy = 0; p.jumps = 2;
                     }
                 });
 
-                // Hazard & Pusher Physics
                 level.hazards.forEach(h => {
                     h.angle = (h.angle || 0) + (h.speed || 0.05);
                     if(h.type === 'saw') {
                         if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) togglePlay();
                     } else if(h.type === 'pusher') {
-                        // Fixed Pusher Hitbox: Solid Beam Collision
                         let cos = Math.cos(h.angle);
                         let sin = Math.sin(h.angle);
                         let dx = p.x + 15 - h.x;
                         let dy = p.y + 15 - h.y;
-                        
-                        // Rotate player relative to pusher
                         let rx = dx * cos + dy * sin;
                         let ry = -dx * sin + dy * cos;
-                        
-                        if(Math.abs(rx) < h.r && Math.abs(ry) < 25) {
-                            // Hit the beam! Push player out based on rotation speed
-                            p.vx += -sin * (h.speed * 200);
-                            p.vy += cos * (h.speed * 200);
-                            // Prevent clipping by snapping player to surface of beam
-                            p.y += (ry > 0 ? 5 : -5);
-                        }
+                        // Killer Hitbox
+                        if(Math.abs(rx) < h.r && Math.abs(ry) < 15) togglePlay();
                     } else if(h.type === 'spike') {
                         if(p.x+25 > h.x && p.x+5 < h.x+GRID && p.y+p.h > h.y+10 && p.y < h.y+GRID) togglePlay();
                     }
@@ -186,7 +219,6 @@
 
             if(mode === 'edit') {
                 ctx.strokeStyle = "rgba(255,255,255,0.03)";
-                ctx.lineWidth = 1;
                 for(let x=Math.floor(camX/GRID)*GRID; x<camX+canvas.width+GRID; x+=GRID) {
                     ctx.beginPath(); ctx.moveTo(x, camY); ctx.lineTo(x, camY+canvas.height); ctx.stroke();
                 }
@@ -208,10 +240,10 @@
                         ctx.fillStyle = "#ea580c";
                         for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-6, -h.r-12, 12, 24); }
                         ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
-                        ctx.fillStyle = "#431407"; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "black"; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
                     } else {
-                        ctx.fillStyle = "#fbbf24"; ctx.fillRect(-h.r, -12, h.r*2, 24); // Solid Beam
-                        ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(0,0,18,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#fde047"; ctx.fillRect(-h.r, -10, h.r*2, 20); // The killer beam
+                        ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
                     }
                     ctx.restore();
                 } else {
@@ -222,21 +254,18 @@
 
             if(level.start) {
                 ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, GRID, GRID);
-                if(level.start === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(level.start.x, level.start.y, GRID, GRID); }
             }
 
             ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => {
                 ctx.fillRect(g.x, g.y, GRID, GRID);
-                if(g === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(g.x, g.y, GRID, GRID); }
             });
 
             if(mode === 'play') {
                 ctx.save(); ctx.translate(p.x+15, p.y+15); ctx.rotate(p.rot);
                 ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
-                // Black Smile and Eyes
                 ctx.fillStyle = "black"; 
-                ctx.beginPath(); ctx.arc(-6, -4, 2.5, 0, Math.PI*2); ctx.fill(); // Eye
-                ctx.beginPath(); ctx.arc(6, -4, 2.5, 0, Math.PI*2); ctx.fill(); // Eye
+                ctx.beginPath(); ctx.arc(-6, -4, 2.5, 0, Math.PI*2); ctx.fill(); 
+                ctx.beginPath(); ctx.arc(6, -4, 2.5, 0, Math.PI*2); ctx.fill(); 
                 ctx.strokeStyle = "black"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
                 ctx.beginPath(); ctx.arc(0, 3, 7, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); 
                 ctx.restore();
@@ -266,12 +295,6 @@
             else if(currentTool === 'start') level.start = {x:gx, y:gy};
         };
 
-        function toggleOpenList() {
-            const container = document.getElementById('level-list-container');
-            container.classList.toggle('hidden');
-            container.innerHTML = '<div style="font-size:0.7rem; color:#431407;">no saved levels found locally</div>';
-        }
-
         function exitToMenu() { document.getElementById('home-screen').classList.remove('hidden'); document.getElementById('editor-screen').style.display='none'; }
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.onresize = resize;
@@ -279,4 +302,4 @@
         loop();
     </script>
 </body>
-</html>    
+</html>
