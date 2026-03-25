@@ -8,13 +8,14 @@
         #home-screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f97316; z-index: 100; }
         #editor-screen { position: absolute; width: 100%; height: 100%; display: none; background: #7c2d12; z-index: 5; }
         .hidden { display: none !important; }
-        h1 { font-size: 4rem; margin: 0; color: #431407; }
-        .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; }
-        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(67, 20, 7, 0.95); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; width: 220px; }
-        .tool-btn { background: #ea580c; color: white; border: none; padding: 6px; cursor: pointer; margin: 2px; font-size: 0.75rem; width: 45%; }
+        h1 { font-size: 5rem; margin: 0; color: #431407; letter-spacing: -2px; }
+        .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; box-shadow: 0 4px 0 #9a3412; }
+        .menu-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #9a3412; }
+        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(43, 15, 7, 0.98); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; width: 220px; }
+        .tool-btn { background: #ea580c; color: white; border: none; padding: 6px; cursor: pointer; margin: 2px; font-size: 0.75rem; width: 45%; border-radius: 4px; }
         .tool-btn.active { background: #fde047; color: #431407; font-weight: bold; }
         .inspector { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ea580c; font-size: 0.8rem; }
-        .del-btn { background: #ef4444; width: 94%; margin-top: 10px; }
+        .del-btn { background: #ef4444; width: 94%; margin-top: 10px; font-weight: bold; }
         input[type=range] { width: 100%; accent-color: #fde047; }
         canvas { display: block; }
     </style>
@@ -23,7 +24,6 @@
 
     <div id="home-screen">
         <h1>big orange 4</h1>
-        <h2>by eric</h2>
         <button class="menu-btn" onclick="startNewLevel()">new game</button>
         <button class="menu-btn" onclick="toggleOpenList()">open game</button>
         <div id="level-list-container" class="hidden" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:5px; width:250px; margin-top:10px;"></div>
@@ -31,26 +31,24 @@
 
     <div id="editor-screen">
         <div id="editor-ui">
-            <div id="mode-text" style="font-weight:bold; margin-bottom:5px;">mode: editing</div>
+            <div id="mode-text" style="font-weight:bold; margin-bottom:5px; color:#fb923c;">mode: editing</div>
             <button class="tool-btn active" onclick="setTool(this, 'block')">block</button>
             <button class="tool-btn" onclick="setTool(this, 'saw')">saw</button>
             <button class="tool-btn" onclick="setTool(this, 'pusher')">pusher</button>
             <button class="tool-btn" onclick="setTool(this, 'spike')">spike</button>
-            <button class="tool-btn" onclick="setTool(this, 'goal')">end</button>
-            <button class="tool-btn" onclick="setTool(this, 'start')">start</button>
-            <button class="tool-btn" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c">edit / move</button>
-            <hr>
+            <button class="tool-btn" onclick="setTool(this, 'goal')">goal</button>
+            <button class="tool-btn" onclick="setTool(this, 'start')">start pos</button>
+            <button class="tool-btn" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c; margin-top:5px;">edit / move</button>
+            <hr style="border:0; border-top:1px solid #431407;">
             <div id="inspector" class="inspector hidden">
-                <div>scale</div>
-                <input type="range" id="scale-range" min="20" max="400" value="40" oninput="updateSelected()">
+                <div>size / length</div>
+                <input type="range" id="scale-range" min="20" max="600" value="40" oninput="updateSelected()">
                 <div>spin speed</div>
-                <input type="range" id="speed-range" min="0" max="20" value="5" oninput="updateSelected()">
+                <input type="range" id="speed-range" min="-20" max="20" value="5" oninput="updateSelected()">
                 <button class="tool-btn del-btn" onclick="deleteObj()">delete object</button>
-                <div style="font-size:0.6rem; margin-top:5px; color:#fde047;">wasd: move | arrows: pan cam</div>
             </div>
-            <hr>
-            <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e; width:94%">play/edit</button>
-            <button class="tool-btn" onclick="exitToMenu()" style="width:94%">menu</button>
+            <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e; width:94%; margin-top:10px; font-weight:bold;">play test</button>
+            <button class="tool-btn" onclick="exitToMenu()" style="width:94%; opacity:0.7;">exit menu</button>
         </div>
         <canvas id="g"></canvas>
     </div>
@@ -64,11 +62,8 @@
         let currentTool = 'block';
         let camX = 0, camY = 0;
         let selectedObj = null;
-        let mouseX = 0, mouseY = 0;
-        
-        // Starts completely empty now
         let level = { platforms: [], hazards: [], goals: [], start: null };
-        const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0 };
+        const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0, w: 30, h: 30 };
 
         function startNewLevel() {
             level = { platforms: [], hazards: [], goals: [], start: null };
@@ -90,7 +85,7 @@
             if(!level.start) { alert("place a 'start pos' first!"); return; }
             mode = (mode === 'edit') ? 'play' : 'edit';
             document.getElementById('mode-text').innerText = "mode: " + mode;
-            if(mode === 'play') { p.x = level.start.x; p.y = level.start.y; p.vx = 0; p.vy = 0; }
+            if(mode === 'play') { p.x = level.start.x + 5; p.y = level.start.y + 5; p.vx = 0; p.vy = 0; }
         }
 
         function deleteObj() {
@@ -115,14 +110,11 @@
         const keys = {};
         window.onkeydown = e => {
             keys[e.code] = true;
-            if(mode === 'edit') {
-                if(selectedObj) {
-                    if(e.code === 'KeyW') selectedObj.y -= GRID;
-                    if(e.code === 'KeyS') selectedObj.y += GRID;
-                    if(e.code === 'KeyA') selectedObj.x -= GRID;
-                    if(e.code === 'KeyD') selectedObj.x += GRID;
-                    if(e.code === 'Delete' || e.code === 'Backspace') deleteObj();
-                }
+            if(mode === 'edit' && selectedObj) {
+                if(e.code === 'KeyW') selectedObj.y -= GRID;
+                if(e.code === 'KeyS') selectedObj.y += GRID;
+                if(e.code === 'KeyA') selectedObj.x -= GRID;
+                if(e.code === 'KeyD') selectedObj.x += GRID;
             }
         };
         window.onkeyup = e => keys[e.code] = false;
@@ -131,38 +123,60 @@
             if(mode === 'play') {
                 if(keys['ArrowLeft'] || keys['KeyA']) p.vx -= 0.8;
                 if(keys['ArrowRight'] || keys['KeyD']) p.vx += 0.8;
-                if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && p.jumps > 0 && !p.lock) { p.vy = -12; p.jumps--; p.lock = true; }
+                if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && p.jumps > 0 && !p.lock) { p.vy = -11.5; p.jumps--; p.lock = true; }
                 if(!(keys['Space'] || keys['ArrowUp'] || keys['KeyW'])) p.lock = false;
 
-                p.vx *= 0.85; p.vy += 0.6; p.x += p.vx; p.y += p.vy;
+                p.vx *= 0.88; p.vy += 0.55;
+                p.x += p.vx; p.y += p.vy;
                 p.rot += p.vx * 0.05; 
-                camX = p.x - canvas.width/3;
-                camY = p.y - canvas.height/2;
+                
+                camX += (p.x - canvas.width/2 - camX) * 0.1;
+                camY += (p.y - canvas.height/2 - camY) * 0.1;
 
+                // Platform Collision
                 level.platforms.forEach(plt => {
-                    if(p.x+30 > plt.x && p.x < plt.x+plt.w && p.y+30 > plt.y && p.y+30 < plt.y+plt.h && p.vy >= 0) { p.y = plt.y - 30; p.vy = 0; p.jumps = 2; }
+                    if(p.x+p.w > plt.x && p.x < plt.x+plt.w && p.y+p.h > plt.y && p.y+p.h < plt.y+plt.h && p.vy >= 0) {
+                        p.y = plt.y - p.h; p.vy = 0; p.jumps = 2;
+                    }
                 });
 
+                // Hazard & Pusher Physics
                 level.hazards.forEach(h => {
                     h.angle = (h.angle || 0) + (h.speed || 0.05);
                     if(h.type === 'saw') {
                         if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) togglePlay();
                     } else if(h.type === 'pusher') {
-                        let dx = p.x + 15 - h.x; let dy = p.y + 15 - h.y;
-                        if(Math.hypot(dx, dy) < h.r + 20) { p.vx -= Math.cos(h.angle) * 1.5; p.vy -= Math.sin(h.angle) * 0.8; }
-                    } else if(p.x+25 > h.x && p.x+5 < h.x+40 && p.y+30 > h.y) { togglePlay(); }
+                        // Fixed Pusher Hitbox: Solid Beam Collision
+                        let cos = Math.cos(h.angle);
+                        let sin = Math.sin(h.angle);
+                        let dx = p.x + 15 - h.x;
+                        let dy = p.y + 15 - h.y;
+                        
+                        // Rotate player relative to pusher
+                        let rx = dx * cos + dy * sin;
+                        let ry = -dx * sin + dy * cos;
+                        
+                        if(Math.abs(rx) < h.r && Math.abs(ry) < 25) {
+                            // Hit the beam! Push player out based on rotation speed
+                            p.vx += -sin * (h.speed * 200);
+                            p.vy += cos * (h.speed * 200);
+                            // Prevent clipping by snapping player to surface of beam
+                            p.y += (ry > 0 ? 5 : -5);
+                        }
+                    } else if(h.type === 'spike') {
+                        if(p.x+25 > h.x && p.x+5 < h.x+GRID && p.y+p.h > h.y+10 && p.y < h.y+GRID) togglePlay();
+                    }
                 });
 
                 level.goals.forEach(g => {
-                    if(p.x+30 > g.x && p.x < g.x+40 && p.y+30 > g.y && p.y < g.y+40) { alert("victory!"); togglePlay(); }
+                    if(p.x+p.w > g.x && p.x < g.x+GRID && p.y+p.h > g.y && p.y < g.y+GRID) { alert("victory!"); togglePlay(); }
                 });
-                if(p.y > camY + 1000) togglePlay();
+                if(p.y > camY + canvas.height + 500) togglePlay();
             } else {
-                // Editor Camera Panning
-                if(keys['ArrowRight']) camX += 10;
-                if(keys['ArrowLeft']) camX -= 10;
-                if(keys['ArrowUp']) camY -= 10;
-                if(keys['ArrowDown']) camY += 10;
+                if(keys['ArrowRight']) camX += 12;
+                if(keys['ArrowLeft']) camX -= 12;
+                if(keys['ArrowUp']) camY -= 12;
+                if(keys['ArrowDown']) camY += 12;
             }
         }
 
@@ -170,17 +184,20 @@
             ctx.clearRect(0,0,canvas.width,canvas.height);
             ctx.save(); ctx.translate(-camX, -camY);
 
-            // Grid lines
             if(mode === 'edit') {
-                ctx.strokeStyle = "rgba(255,255,255,0.05)";
+                ctx.strokeStyle = "rgba(255,255,255,0.03)";
+                ctx.lineWidth = 1;
                 for(let x=Math.floor(camX/GRID)*GRID; x<camX+canvas.width+GRID; x+=GRID) {
                     ctx.beginPath(); ctx.moveTo(x, camY); ctx.lineTo(x, camY+canvas.height); ctx.stroke();
+                }
+                for(let y=Math.floor(camY/GRID)*GRID; y<camY+canvas.height+GRID; y+=GRID) {
+                    ctx.beginPath(); ctx.moveTo(camX, y); ctx.lineTo(camX+canvas.width, y); ctx.stroke();
                 }
             }
 
             level.platforms.forEach(plt => {
                 ctx.fillStyle = "#ea580c"; ctx.fillRect(plt.x, plt.y, plt.w, plt.h);
-                if(plt === selectedObj) { ctx.strokeStyle = "white"; ctx.lineWidth = 4; ctx.strokeRect(plt.x, plt.y, plt.w, plt.h); }
+                if(plt === selectedObj) { ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.strokeRect(plt.x, plt.y, plt.w, plt.h); }
             });
 
             level.hazards.forEach(h => {
@@ -188,36 +205,41 @@
                 if(h.type === 'saw' || h.type === 'pusher') {
                     ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.angle);
                     if(h.type === 'saw') {
-                        for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-5, -h.r-10, 10, 20); }
-                        ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#ea580c";
+                        for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-6, -h.r-12, 12, 24); }
+                        ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#431407"; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
                     } else {
-                        ctx.fillStyle = "#fbbf24"; ctx.fillRect(-h.r, -10, h.r*2, 20);
-                        ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
+                        ctx.fillStyle = "#fbbf24"; ctx.fillRect(-h.r, -12, h.r*2, 24); // Solid Beam
+                        ctx.fillStyle = "#f59e0b"; ctx.beginPath(); ctx.arc(0,0,18,0,Math.PI*2); ctx.fill();
                     }
                     ctx.restore();
                 } else {
-                    ctx.beginPath(); ctx.moveTo(h.x, h.y+GRID); ctx.lineTo(h.x+GRID/2, h.y); ctx.lineTo(h.x+GRID, h.y+GRID); ctx.fill();
+                    ctx.beginPath(); ctx.moveTo(h.x, h.y+GRID); ctx.lineTo(h.x+GRID/2, h.y+5); ctx.lineTo(h.x+GRID, h.y+GRID); ctx.fill();
                 }
-                if(h === selectedObj) { ctx.strokeStyle = "white"; ctx.beginPath(); ctx.arc(h.x, h.y, (h.r||20)+15, 0, Math.PI*2); ctx.stroke(); }
+                if(h === selectedObj) { ctx.strokeStyle = "#fde047"; ctx.beginPath(); ctx.arc(h.x, h.y, (h.r||20)+15, 0, Math.PI*2); ctx.stroke(); }
             });
 
-            // Start Block (1x1 Green)
             if(level.start) {
                 ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, GRID, GRID);
                 if(level.start === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(level.start.x, level.start.y, GRID, GRID); }
             }
 
-            // Goal Block
             ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => {
-                ctx.fillRect(g.x, g.y, g.w, g.h);
-                if(g === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(g.x, g.y, g.w, g.h); }
+                ctx.fillRect(g.x, g.y, GRID, GRID);
+                if(g === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(g.x, g.y, GRID, GRID); }
             });
 
             if(mode === 'play') {
                 ctx.save(); ctx.translate(p.x+15, p.y+15); ctx.rotate(p.rot);
                 ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
-                ctx.fillStyle = "#431407"; ctx.fillRect(-8,-5,4,4); ctx.fillRect(4,-5,4,4);
-                ctx.beginPath(); ctx.arc(0,2,6,0.2*Math.PI, 0.8*Math.PI); ctx.stroke(); ctx.restore();
+                // Black Smile and Eyes
+                ctx.fillStyle = "black"; 
+                ctx.beginPath(); ctx.arc(-6, -4, 2.5, 0, Math.PI*2); ctx.fill(); // Eye
+                ctx.beginPath(); ctx.arc(6, -4, 2.5, 0, Math.PI*2); ctx.fill(); // Eye
+                ctx.strokeStyle = "black"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+                ctx.beginPath(); ctx.arc(0, 3, 7, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); 
+                ctx.restore();
             }
             ctx.restore();
         }
@@ -234,14 +256,21 @@
                 if(selectedObj) {
                     document.getElementById('inspector').classList.remove('hidden');
                     document.getElementById('scale-range').value = selectedObj.w || (selectedObj.r*2) || GRID;
+                    document.getElementById('speed-range').value = (selectedObj.speed || 0) * 100;
                 }
             } else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID});
-            else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+20, y:gy+20, r:20, angle:0, speed:0.05});
-            else if(currentTool === 'pusher') level.hazards.push({type:'pusher', x:gx+20, y:gy+20, r:80, angle:0, speed:0.03});
+            else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+20, y:gy+20, r:25, angle:0, speed:0.06});
+            else if(currentTool === 'pusher') level.hazards.push({type:'pusher', x:gx+20, y:gy+20, r:120, angle:0, speed:0.03});
             else if(currentTool === 'spike') level.hazards.push({type:'spike', x:gx, y:gy});
             else if(currentTool === 'goal') level.goals.push({x:gx, y:gy, w:GRID, h:GRID});
             else if(currentTool === 'start') level.start = {x:gx, y:gy};
         };
+
+        function toggleOpenList() {
+            const container = document.getElementById('level-list-container');
+            container.classList.toggle('hidden');
+            container.innerHTML = '<div style="font-size:0.7rem; color:#431407;">no saved levels found locally</div>';
+        }
 
         function exitToMenu() { document.getElementById('home-screen').classList.remove('hidden'); document.getElementById('editor-screen').style.display='none'; }
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -250,4 +279,4 @@
         loop();
     </script>
 </body>
-</html>
+</html>    
