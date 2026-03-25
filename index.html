@@ -2,35 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>big orange 4: by eric</title>
+    <title>big orange 4</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'courier new', monospace; color: #ffedd5; text-transform: lowercase; user-select: none; background: #431407; }
-        
-        #home-screen {
-            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: #f97316; z-index: 10;
-        }
-        
-        #editor-screen {
-            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
-            display: none; background: #7c2d12; z-index: 5;
-        }
-
+        body { margin: 0; overflow: hidden; font-family: 'courier new', monospace; color: #ffedd5; text-transform: lowercase; background: #431407; }
+        #home-screen { position: absolute; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #f97316; z-index: 100; }
+        #editor-screen { position: absolute; width: 100%; height: 100%; display: none; background: #7c2d12; z-index: 5; }
         .hidden { display: none !important; }
-        
-        h1 { font-size: 4rem; margin-bottom: 0; color: #431407; }
-        h2 { font-size: 1.5rem; margin-top: 5px; color: #7c2d12; }
-
+        h1 { font-size: 4rem; margin: 0; color: #431407; }
         .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; }
-        .menu-btn:hover { background: #431407; }
-
-        #level-list-container { max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-top: 20px; width: 300px; }
-        .level-item { display: flex; justify-content: space-between; margin-bottom: 5px; background: rgba(255,255,255,0.1); padding: 5px; }
-
-        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(67, 20, 7, 0.95); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; pointer-events: auto; }
-        .tool-btn { background: #ea580c; color: white; border: none; padding: 8px; cursor: pointer; margin: 2px; font-size: 0.8rem; }
+        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 1000; background: rgba(67, 20, 7, 0.95); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; width: 220px; }
+        .tool-btn { background: #ea580c; color: white; border: none; padding: 6px; cursor: pointer; margin: 2px; font-size: 0.75rem; width: 45%; }
         .tool-btn.active { background: #fde047; color: #431407; font-weight: bold; }
+        .inspector { margin-top: 10px; padding-top: 10px; border-top: 1px solid #ea580c; font-size: 0.8rem; }
+        .del-btn { background: #ef4444; width: 94%; margin-top: 10px; }
+        input[type=range] { width: 100%; accent-color: #fde047; }
         canvas { display: block; }
     </style>
 </head>
@@ -41,21 +26,31 @@
         <h2>by eric</h2>
         <button class="menu-btn" onclick="startNewLevel()">new game</button>
         <button class="menu-btn" onclick="toggleOpenList()">open game</button>
-        <div id="level-list-container" class="hidden"></div>
+        <div id="level-list-container" class="hidden" style="background:rgba(0,0,0,0.2); padding:10px; border-radius:5px; width:250px; margin-top:10px;"></div>
     </div>
 
     <div id="editor-screen">
         <div id="editor-ui">
-            <div id="mode-text" style="font-weight:bold; margin-bottom:10px;">mode: editing</div>
-            <button class="tool-btn active" onclick="setTool(this, 'block')">block 1x1</button>
-            <button class="tool-btn" onclick="setTool(this, 'moving')">moving (drag)</button>
-            <button class="tool-btn" onclick="setTool(this, 'saw')">saw 9x9</button>
-            <button class="tool-btn" onclick="setTool(this, 'spike')">spike 1x1</button>
-            <button class="tool-btn" onclick="setTool(this, 'goal')">goal 1x1</button>
+            <div id="mode-text" style="font-weight:bold; margin-bottom:5px;">mode: editing</div>
+            <button class="tool-btn active" onclick="setTool(this, 'block')">block</button>
+            <button class="tool-btn" onclick="setTool(this, 'saw')">saw</button>
+            <button class="tool-btn" onclick="setTool(this, 'pusher')">pusher</button>
+            <button class="tool-btn" onclick="setTool(this, 'spike')">spike</button>
+            <button class="tool-btn" onclick="setTool(this, 'goal')">end</button>
+            <button class="tool-btn" onclick="setTool(this, 'start')">start</button>
+            <button class="tool-btn" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c">edit / move</button>
             <hr>
-            <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e">play/edit</button>
-            <button class="tool-btn" onclick="saveLevel()">save</button>
-            <button class="tool-btn" onclick="exitToMenu()">menu</button>
+            <div id="inspector" class="inspector hidden">
+                <div>scale</div>
+                <input type="range" id="scale-range" min="20" max="400" value="40" oninput="updateSelected()">
+                <div>spin speed</div>
+                <input type="range" id="speed-range" min="0" max="20" value="5" oninput="updateSelected()">
+                <button class="tool-btn del-btn" onclick="deleteObj()">delete object</button>
+                <div style="font-size:0.6rem; margin-top:5px; color:#fde047;">wasd: move | arrows: pan cam</div>
+            </div>
+            <hr>
+            <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e; width:94%">play/edit</button>
+            <button class="tool-btn" onclick="exitToMenu()" style="width:94%">menu</button>
         </div>
         <canvas id="g"></canvas>
     </div>
@@ -64,218 +59,193 @@
         const canvas = document.getElementById('g');
         const ctx = canvas.getContext('2d');
         const GRID = 40;
-        const SAW_SIZE = GRID * 9;
 
-        let mode = 'edit'; // 'edit' or 'play'
+        let mode = 'edit';
         let currentTool = 'block';
-        let camX = 0;
-        let frame = 0;
-        let dragStart = null;
+        let camX = 0, camY = 0;
+        let selectedObj = null;
         let mouseX = 0, mouseY = 0;
-
-        let level = { platforms: [], hazards: [], goals: [], start: {x: 40, y: 400} };
-
+        
+        // Starts completely empty now
+        let level = { platforms: [], hazards: [], goals: [], start: null };
         const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0 };
 
-        // --- Init & Menu ---
         function startNewLevel() {
-            level = { platforms: [{x:0, y:480, w:200, h:40, type:'block'}], hazards: [], goals: [{x:600, y:400, w:40, h:40}], start: {x: 40, y: 440} };
-            openEditor();
-        }
-
-        function openEditor() {
-            document.getElementById('home-screen').style.display = 'none';
+            level = { platforms: [], hazards: [], goals: [], start: null };
+            document.getElementById('home-screen').classList.add('hidden');
             document.getElementById('editor-screen').style.display = 'block';
-            mode = 'edit';
-            camX = 0;
+            camX = 0; camY = 0;
             resize();
         }
 
-        function exitToMenu() {
-            document.getElementById('home-screen').style.display = 'flex';
-            document.getElementById('editor-screen').style.display = 'none';
-        }
-
-        function toggleOpenList() {
-            const container = document.getElementById('level-list-container');
-            container.classList.toggle('hidden');
-            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
-            container.innerHTML = '';
-            Object.keys(saved).forEach(name => {
-                const div = document.createElement('div');
-                div.className = 'level-item';
-                div.innerHTML = `<span>${name}</span><button onclick="loadLevel('${name}')">load</button>`;
-                container.appendChild(div);
-            });
-        }
-
-        function saveLevel() {
-            const name = prompt("name your level:");
-            if(!name) return;
-            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
-            saved[name] = level;
-            localStorage.setItem('bo4_saves', JSON.stringify(saved));
-            alert("saved!");
-        }
-
-        function loadLevel(name) {
-            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
-            level = saved[name];
-            openEditor();
-        }
-
-        // --- Tools ---
         function setTool(btn, t) {
             currentTool = t;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            selectedObj = null;
+            document.getElementById('inspector').classList.add('hidden');
         }
 
         function togglePlay() {
+            if(!level.start) { alert("place a 'start pos' first!"); return; }
             mode = (mode === 'edit') ? 'play' : 'edit';
             document.getElementById('mode-text').innerText = "mode: " + mode;
-            if(mode === 'play') {
-                p.x = level.start.x; p.y = level.start.y;
-                p.vx = 0; p.vy = 0; p.rot = 0;
-            }
+            if(mode === 'play') { p.x = level.start.x; p.y = level.start.y; p.vx = 0; p.vy = 0; }
         }
 
-        // --- Core Loop ---
+        function deleteObj() {
+            if(!selectedObj) return;
+            level.platforms = level.platforms.filter(o => o !== selectedObj);
+            level.hazards = level.hazards.filter(o => o !== selectedObj);
+            level.goals = level.goals.filter(o => o !== selectedObj);
+            if(level.start === selectedObj) level.start = null;
+            selectedObj = null;
+            document.getElementById('inspector').classList.add('hidden');
+        }
+
+        function updateSelected() {
+            if(!selectedObj) return;
+            const s = parseInt(document.getElementById('scale-range').value);
+            const spd = parseInt(document.getElementById('speed-range').value) / 100;
+            if(selectedObj.w !== undefined) { selectedObj.w = s; selectedObj.h = s; }
+            if(selectedObj.r !== undefined) { selectedObj.r = s / 2; }
+            if(selectedObj.speed !== undefined) { selectedObj.speed = spd; }
+        }
+
         const keys = {};
-        window.onkeydown = e => keys[e.code] = true;
+        window.onkeydown = e => {
+            keys[e.code] = true;
+            if(mode === 'edit') {
+                if(selectedObj) {
+                    if(e.code === 'KeyW') selectedObj.y -= GRID;
+                    if(e.code === 'KeyS') selectedObj.y += GRID;
+                    if(e.code === 'KeyA') selectedObj.x -= GRID;
+                    if(e.code === 'KeyD') selectedObj.x += GRID;
+                    if(e.code === 'Delete' || e.code === 'Backspace') deleteObj();
+                }
+            }
+        };
         window.onkeyup = e => keys[e.code] = false;
 
         function update() {
-            frame++;
             if(mode === 'play') {
                 if(keys['ArrowLeft'] || keys['KeyA']) p.vx -= 0.8;
                 if(keys['ArrowRight'] || keys['KeyD']) p.vx += 0.8;
-                if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && p.jumps > 0 && !p.lock) {
-                    p.vy = -12; p.jumps--; p.lock = true;
-                }
+                if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && p.jumps > 0 && !p.lock) { p.vy = -12; p.jumps--; p.lock = true; }
                 if(!(keys['Space'] || keys['ArrowUp'] || keys['KeyW'])) p.lock = false;
 
-                p.vx *= 0.85; p.vy += 0.6;
-                p.x += p.vx; p.y += p.vy;
-                p.rot += p.vx * 0.05;
+                p.vx *= 0.85; p.vy += 0.6; p.x += p.vx; p.y += p.vy;
+                p.rot += p.vx * 0.05; 
                 camX = p.x - canvas.width/3;
+                camY = p.y - canvas.height/2;
 
-                // Collisions
                 level.platforms.forEach(plt => {
-                    if(plt.type === 'moving') {
-                        let t = (Math.sin(frame * 0.02) + 1) / 2;
-                        plt.x = plt.x1 + (plt.x2 - plt.x1) * t;
-                        plt.y = plt.y1 + (plt.y2 - plt.y1) * t;
-                    }
-                    if(p.x+30 > plt.x && p.x < plt.x+plt.w && p.y+30 > plt.y && p.y+30 < plt.y+plt.h && p.vy >= 0) {
-                        p.y = plt.y - 30; p.vy = 0; p.jumps = 2;
-                    }
+                    if(p.x+30 > plt.x && p.x < plt.x+plt.w && p.y+30 > plt.y && p.y+30 < plt.y+plt.h && p.vy >= 0) { p.y = plt.y - 30; p.vy = 0; p.jumps = 2; }
                 });
 
                 level.hazards.forEach(h => {
+                    h.angle = (h.angle || 0) + (h.speed || 0.05);
                     if(h.type === 'saw') {
                         if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) togglePlay();
-                    } else if(p.x+25 > h.x && p.x+5 < h.x+40 && p.y+30 > h.y) {
-                        togglePlay();
-                    }
+                    } else if(h.type === 'pusher') {
+                        let dx = p.x + 15 - h.x; let dy = p.y + 15 - h.y;
+                        if(Math.hypot(dx, dy) < h.r + 20) { p.vx -= Math.cos(h.angle) * 1.5; p.vy -= Math.sin(h.angle) * 0.8; }
+                    } else if(p.x+25 > h.x && p.x+5 < h.x+40 && p.y+30 > h.y) { togglePlay(); }
                 });
 
                 level.goals.forEach(g => {
-                    if(p.x+30 > g.x && p.x < g.x+40 && p.y+30 > g.y && p.y < g.y+40) {
-                        alert("you win!"); togglePlay();
-                    }
+                    if(p.x+30 > g.x && p.x < g.x+40 && p.y+30 > g.y && p.y < g.y+40) { alert("victory!"); togglePlay(); }
                 });
-
-                if(p.y > 1000) togglePlay();
+                if(p.y > camY + 1000) togglePlay();
             } else {
+                // Editor Camera Panning
                 if(keys['ArrowRight']) camX += 10;
                 if(keys['ArrowLeft']) camX -= 10;
+                if(keys['ArrowUp']) camY -= 10;
+                if(keys['ArrowDown']) camY += 10;
             }
         }
 
         function draw() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.save();
-            ctx.translate(-camX, 0);
+            ctx.save(); ctx.translate(-camX, -camY);
 
-            // Grid
+            // Grid lines
             if(mode === 'edit') {
                 ctx.strokeStyle = "rgba(255,255,255,0.05)";
-                for(let x=0; x<5000; x+=GRID) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+                for(let x=Math.floor(camX/GRID)*GRID; x<camX+canvas.width+GRID; x+=GRID) {
+                    ctx.beginPath(); ctx.moveTo(x, camY); ctx.lineTo(x, camY+canvas.height); ctx.stroke();
+                }
             }
 
-            // Platforms
             level.platforms.forEach(plt => {
-                ctx.fillStyle = plt.type === 'moving' ? "#fb923c" : "#ea580c";
-                ctx.fillRect(plt.x, plt.y, plt.w, plt.h);
-                if(mode === 'edit' && plt.type === 'moving') {
-                    ctx.setLineDash([5,5]); ctx.strokeStyle="white";
-                    ctx.strokeRect(plt.x1, plt.y1, plt.w, plt.h);
-                    ctx.strokeRect(plt.x2, plt.y2, plt.w, plt.h);
-                    ctx.setLineDash([]);
-                }
+                ctx.fillStyle = "#ea580c"; ctx.fillRect(plt.x, plt.y, plt.w, plt.h);
+                if(plt === selectedObj) { ctx.strokeStyle = "white"; ctx.lineWidth = 4; ctx.strokeRect(plt.x, plt.y, plt.w, plt.h); }
             });
 
-            // Hazards
             level.hazards.forEach(h => {
                 ctx.fillStyle = "#f97316";
-                if(h.type === 'saw') {
-                    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(frame*0.1);
-                    for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-5, -h.r-10, 10, 20); }
-                    ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+                if(h.type === 'saw' || h.type === 'pusher') {
+                    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.angle);
+                    if(h.type === 'saw') {
+                        for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-5, -h.r-10, 10, 20); }
+                        ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
+                    } else {
+                        ctx.fillStyle = "#fbbf24"; ctx.fillRect(-h.r, -10, h.r*2, 20);
+                        ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
+                    }
+                    ctx.restore();
                 } else {
                     ctx.beginPath(); ctx.moveTo(h.x, h.y+GRID); ctx.lineTo(h.x+GRID/2, h.y); ctx.lineTo(h.x+GRID, h.y+GRID); ctx.fill();
                 }
+                if(h === selectedObj) { ctx.strokeStyle = "white"; ctx.beginPath(); ctx.arc(h.x, h.y, (h.r||20)+15, 0, Math.PI*2); ctx.stroke(); }
             });
 
-            // Start & Goal
-            ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, 10, 10);
-            ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => ctx.fillRect(g.x, g.y, 40, 40));
+            // Start Block (1x1 Green)
+            if(level.start) {
+                ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, GRID, GRID);
+                if(level.start === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(level.start.x, level.start.y, GRID, GRID); }
+            }
 
-            // Player
+            // Goal Block
+            ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => {
+                ctx.fillRect(g.x, g.y, g.w, g.h);
+                if(g === selectedObj) { ctx.strokeStyle = "white"; ctx.strokeRect(g.x, g.y, g.w, g.h); }
+            });
+
             if(mode === 'play') {
                 ctx.save(); ctx.translate(p.x+15, p.y+15); ctx.rotate(p.rot);
                 ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
                 ctx.fillStyle = "#431407"; ctx.fillRect(-8,-5,4,4); ctx.fillRect(4,-5,4,4);
                 ctx.beginPath(); ctx.arc(0,2,6,0.2*Math.PI, 0.8*Math.PI); ctx.stroke(); ctx.restore();
             }
-
-            // Ghost Preview
-            if(mode === 'edit') {
-                ctx.globalAlpha = 0.4; ctx.fillStyle = "white";
-                let gx = Math.floor(mouseX/GRID)*GRID; let gy = Math.floor(mouseY/GRID)*GRID;
-                ctx.fillRect(gx, gy, GRID, GRID); ctx.globalAlpha = 1;
-            }
-
             ctx.restore();
         }
 
         canvas.onmousedown = e => {
             if(mode !== 'edit') return;
             let gx = Math.floor((e.clientX + camX)/GRID)*GRID;
-            let gy = Math.floor(e.clientY/GRID)*GRID;
-            if(currentTool === 'moving') dragStart = {x:gx, y:gy};
-            else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID, type:'block'});
-            else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+GRID/2, y:gy+GRID/2, r:SAW_SIZE/2});
+            let gy = Math.floor((e.clientY + camY)/GRID)*GRID;
+
+            if(currentTool === 'select') {
+                selectedObj = [...level.platforms, ...level.hazards, ...level.goals, level.start].find(o => 
+                    o && (Math.hypot(gx - o.x, gy - o.y) < GRID || (gx >= o.x && gx < o.x+(o.w||GRID) && gy >= o.y && gy < o.y+(o.h||GRID)))
+                );
+                if(selectedObj) {
+                    document.getElementById('inspector').classList.remove('hidden');
+                    document.getElementById('scale-range').value = selectedObj.w || (selectedObj.r*2) || GRID;
+                }
+            } else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID});
+            else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+20, y:gy+20, r:20, angle:0, speed:0.05});
+            else if(currentTool === 'pusher') level.hazards.push({type:'pusher', x:gx+20, y:gy+20, r:80, angle:0, speed:0.03});
             else if(currentTool === 'spike') level.hazards.push({type:'spike', x:gx, y:gy});
             else if(currentTool === 'goal') level.goals.push({x:gx, y:gy, w:GRID, h:GRID});
-            else if(currentTool === 'start') { level.start.x = gx; level.start.y = gy; }
-        }
+            else if(currentTool === 'start') level.start = {x:gx, y:gy};
+        };
 
-        canvas.onmouseup = e => {
-            if(currentTool === 'moving' && dragStart) {
-                let gx = Math.floor((e.clientX + camX)/GRID)*GRID;
-                let gy = Math.floor(e.clientY/GRID)*GRID;
-                level.platforms.push({x1:dragStart.x, y1:dragStart.y, x2:gx, y2:gy, x:gx, y:gy, w:GRID, h:GRID, type:'moving'});
-                dragStart = null;
-            }
-        }
-
-        canvas.onmousemove = e => { mouseX = e.clientX + camX; mouseY = e.clientY; }
-
+        function exitToMenu() { document.getElementById('home-screen').classList.remove('hidden'); document.getElementById('editor-screen').style.display='none'; }
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.onresize = resize;
-
         function loop() { update(); draw(); requestAnimationFrame(loop); }
         loop();
     </script>
