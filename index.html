@@ -4,537 +4,279 @@
     <meta charset="UTF-8">
     <title>big orange 4</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'courier new', monospace; color: #ffedd5; text-transform: lowercase; user-select: none; }
-        #app-container { position: relative; width: 100vw; height: 100vh; background: #431407; display: flex; justify-content: center; align-items: center; }
-
-        #home-screen, #editor-screen {
+        body { margin: 0; overflow: hidden; font-family: 'courier new', monospace; color: #ffedd5; text-transform: lowercase; user-select: none; background: #431407; }
+        
+        #home-screen {
             position: absolute; width: 100%; height: 100%; top: 0; left: 0;
             display: flex; flex-direction: column; justify-content: center; align-items: center;
-            background: #f97316; /* Orange home screen */
-            transition: opacity 0.5s;
+            background: #f97316; z-index: 10;
         }
-        #editor-screen { background: #7c2d12; justify-content: flex-start; align-items: flex-start; opacity: 0; pointer-events: none; }
-        #home-screen.hidden, #editor-screen.hidden { opacity: 0; pointer-events: none; }
-        #editor-screen.active { opacity: 1; pointer-events: auto; }
+        
+        #editor-screen {
+            position: absolute; width: 100%; height: 100%; top: 0; left: 0;
+            display: none; background: #7c2d12; z-index: 5;
+        }
 
+        .hidden { display: none !important; }
+        
         h1 { font-size: 4rem; margin-bottom: 0; color: #431407; }
-        h2 { font-size: 1.5rem; margin-top: 5px; color: #ea580c; }
+        h2 { font-size: 1.5rem; margin-top: 5px; color: #7c2d12; }
 
-        .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.5rem; cursor: pointer; border-radius: 8px; transition: background 0.3s; }
-        .menu-btn:hover { background: #fb923c; }
+        .menu-btn { background: #ea580c; color: white; border: none; padding: 15px 30px; margin: 10px; font-size: 1.2rem; cursor: pointer; border-radius: 8px; }
+        .menu-btn:hover { background: #431407; }
 
-        #level-list-container { max-height: 400px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-top: 20px; width: 80%; max-width: 600px; }
-        .level-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); }
-        .level-item span { flex-grow: 1; margin-right: 10px; color: #ffedd5; }
-        .level-item button { margin-left: 5px; padding: 5px 10px; font-size: 0.9rem; background: #fb923c; border: none; border-radius: 3px; cursor: pointer; }
-        .level-item button:hover { background: #fde047; }
-        .level-item .delete-btn { background: #ef4444; }
-        .level-item .delete-btn:hover { background: #dc2626; }
+        #level-list-container { max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 5px; margin-top: 20px; width: 300px; }
+        .level-item { display: flex; justify-content: space-between; margin-bottom: 5px; background: rgba(255,255,255,0.1); padding: 5px; }
 
-        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(67, 20, 7, 0.9); padding: 10px; border: 2px solid #ea580c; border-radius: 5px; }
-        #mode-indicator { font-size: 1.2rem; font-weight: bold; margin-bottom: 8px; display: block; color: #ffedd5; }
-        .tool-btn { background: #ea580c; color: white; border: none; padding: 5px 10px; cursor: pointer; margin: 2px; border-radius: 3px; font-size: 0.8rem; }
-        .tool-btn:hover { background: #fb923c; }
-        .tool-btn.active { background: #fde047; color: #431407; }
-        #editor-controls { font-size: 0.7rem; margin-top: 8px; color: #ffedd5; opacity: 0.8; }
-        #editor-canvas { display: block; background: #7c2d12; cursor: crosshair; }
+        #editor-ui { position: absolute; top: 10px; left: 10px; z-index: 100; background: rgba(67, 20, 7, 0.95); padding: 15px; border: 2px solid #ea580c; border-radius: 5px; pointer-events: auto; }
+        .tool-btn { background: #ea580c; color: white; border: none; padding: 8px; cursor: pointer; margin: 2px; font-size: 0.8rem; }
+        .tool-btn.active { background: #fde047; color: #431407; font-weight: bold; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <div id="app-container">
-        <div id="home-screen">
-            <h1>big orange 4</h1>
-            <h2>by eric</h2>
-            <button class="menu-btn" onclick="startNewLevel()">new game</button>
-            <button class="menu-btn" onclick="openLevelSelection()">open game</button>
-            <div id="level-list-container" class="hidden"></div>
-        </div>
 
-        <div id="editor-screen" class="hidden">
-            <div id="editor-ui">
-                <span id="mode-indicator">mode: editing</span>
-                <button class="tool-btn" data-tool="block" onclick="setTool('block')">block (1x1)</button>
-                <button class="tool-btn" data-tool="moving" onclick="setTool('moving')">moving (drag)</button>
-                <button class="tool-btn" data-tool="saw" onclick="setTool('saw')">saw (9x9)</button>
-                <button class="tool-btn" data-tool="spike" onclick="setTool('spike')">spike (1x1)</button>
-                <button class="tool-btn" data-tool="start" onclick="setTool('start')">start (1x1)</button>
-                <button class="tool-btn" data-tool="goal" onclick="setTool('goal')">goal (1x1)</button>
-                <hr style="border:1px solid #ea580c; margin: 8px 0;">
-                <button class="tool-btn" onclick="togglePlay()">play / edit</button>
-                <button class="tool-btn" onclick="saveCurrentLevel()">save level</button>
-                <button class="tool-btn" onclick="loadLevel(currentLevelId)">load selected</button>
-                <button class="tool-btn" onclick="showHomeScreen()">back to menu</button>
-                <div id="editor-controls">
-                    click/drag to place | r: reset player | arrows: move camera | delete: remove
-                </div>
-            </div>
-            <canvas id="editor-canvas"></canvas>
+    <div id="home-screen">
+        <h1>big orange 4</h1>
+        <h2>by eric</h2>
+        <button class="menu-btn" onclick="startNewLevel()">new game</button>
+        <button class="menu-btn" onclick="toggleOpenList()">open game</button>
+        <div id="level-list-container" class="hidden"></div>
+    </div>
+
+    <div id="editor-screen">
+        <div id="editor-ui">
+            <div id="mode-text" style="font-weight:bold; margin-bottom:10px;">mode: editing</div>
+            <button class="tool-btn active" onclick="setTool(this, 'block')">block 1x1</button>
+            <button class="tool-btn" onclick="setTool(this, 'moving')">moving (drag)</button>
+            <button class="tool-btn" onclick="setTool(this, 'saw')">saw 9x9</button>
+            <button class="tool-btn" onclick="setTool(this, 'spike')">spike 1x1</button>
+            <button class="tool-btn" onclick="setTool(this, 'goal')">goal 1x1</button>
+            <hr>
+            <button class="tool-btn" onclick="togglePlay()" style="background:#22c55e">play/edit</button>
+            <button class="tool-btn" onclick="saveLevel()">save</button>
+            <button class="tool-btn" onclick="exitToMenu()">menu</button>
         </div>
+        <canvas id="g"></canvas>
     </div>
 
     <script>
-        const GRID_SIZE = 40;
-        const SAW_SIZE = 9 * GRID_SIZE; // 9x9 grid units
+        const canvas = document.getElementById('g');
+        const ctx = canvas.getContext('2d');
+        const GRID = 40;
+        const SAW_SIZE = GRID * 9;
 
-        const appContainer = document.getElementById('app-container');
-        const homeScreen = document.getElementById('home-screen');
-        const editorScreen = document.getElementById('editor-screen');
-        const levelListContainer = document.getElementById('level-list-container');
-        const editorCanvas = document.getElementById('editor-canvas');
-        const editorCtx = editorCanvas.getContext('2d');
-        const modeIndicator = document.getElementById('mode-indicator');
-        
-        let isPlaying = false;
+        let mode = 'edit'; // 'edit' or 'play'
         let currentTool = 'block';
         let camX = 0;
         let frame = 0;
-        let currentLevelId = null; // ID of the level being edited/played
-        let levels = {}; // Stores all levels from local storage
+        let dragStart = null;
+        let mouseX = 0, mouseY = 0;
 
-        let levelData = {
-            platforms: [], hazards: [], goals: [], start: {x: 1 * GRID_SIZE, y: 12 * GRID_SIZE}
-        };
+        let level = { platforms: [], hazards: [], goals: [], start: {x: 40, y: 400} };
 
-        const player = {
-            x: 0, y: 0, w: GRID_SIZE, h: GRID_SIZE, vx: 0, vy: 0, 
-            speed: 0.75, jump: 12.5, rot: 0, jumps: 2, grounded: false,
-            moveLeft: false, moveRight: false, jumpPressed: false // Prevent continuous jump
-        };
+        const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0 };
 
-        let dragStart = null; // For drawing moving platforms
-
-        const keys = {};
-        window.onkeydown = e => { 
-            keys[e.code] = true; 
-            if (isPlaying && e.code === 'KeyR') { resetPlayer(); }
-            if (!isPlaying && e.code === 'Delete') { deleteSelectedObject(); }
-        };
-        window.onkeyup = e => { keys[e.code] = false; };
-
-        // --- Home Screen Logic ---
-        function showHomeScreen() {
-            homeScreen.classList.remove('hidden');
-            editorScreen.classList.add('hidden');
-            loadAllLevels();
-        }
-
-        function openLevelSelection() {
-            levelListContainer.classList.toggle('hidden');
-            loadAllLevels();
-        }
-
-        function loadAllLevels() {
-            const storedLevels = localStorage.getItem('bo4_levels');
-            levels = storedLevels ? JSON.parse(storedLevels) : {};
-
-            levelListContainer.innerHTML = '';
-            if (Object.keys(levels).length === 0) {
-                levelListContainer.innerHTML = '<div style="text-align:center; padding:10px;">no saved levels yet.</div>';
-                return;
-            }
-
-            for (const id in levels) {
-                const item = document.createElement('div');
-                item.className = 'level-item';
-                item.innerHTML = `
-                    <span>level: ${id}</span>
-                    <div>
-                        <button onclick="loadLevel('${id}')">edit</button>
-                        <button onclick="playLevel('${id}')">play</button>
-                        <button class="delete-btn" onclick="deleteLevel('${id}')">delete</button>
-                    </div>
-                `;
-                levelListContainer.appendChild(item);
-            }
-        }
-
-        function generateUniqueLevelId() {
-            let id;
-            do {
-                id = Math.random().toString(36).substring(2, 7); // short random string
-            } while (levels[id]);
-            return id;
-        }
-
+        // --- Init & Menu ---
         function startNewLevel() {
-            currentLevelId = generateUniqueLevelId();
-            levelData = { platforms: [], hazards: [], goals: [], start: {x: 1 * GRID_SIZE, y: 12 * GRID_SIZE} };
-            levelData.platforms.push({ x: 0 * GRID_SIZE, y: 14 * GRID_SIZE, w: 5 * GRID_SIZE, h: 1 * GRID_SIZE, type: 'block' }); // starting platform
-            levels[currentLevelId] = levelData; // Add new level to collection
-            saveLevelsToLocalStorage();
-            showEditor(currentLevelId);
+            level = { platforms: [{x:0, y:480, w:200, h:40, type:'block'}], hazards: [], goals: [{x:600, y:400, w:40, h:40}], start: {x: 40, y: 440} };
+            openEditor();
         }
 
-        function loadLevel(id) {
-            currentLevelId = id;
-            levelData = JSON.parse(JSON.stringify(levels[id])); // Deep copy
-            player.x = levelData.start.x; player.y = levelData.start.y;
-            showEditor(currentLevelId);
+        function openEditor() {
+            document.getElementById('home-screen').style.display = 'none';
+            document.getElementById('editor-screen').style.display = 'block';
+            mode = 'edit';
+            camX = 0;
+            resize();
         }
 
-        function playLevel(id) {
-            loadLevel(id);
-            togglePlay(); // Switch to play mode immediately
+        function exitToMenu() {
+            document.getElementById('home-screen').style.display = 'flex';
+            document.getElementById('editor-screen').style.display = 'none';
         }
 
-        function deleteLevel(id) {
-            if (confirm(`are you sure you want to delete level "${id}"?`)) {
-                delete levels[id];
-                saveLevelsToLocalStorage();
-                loadAllLevels(); // Refresh list
-            }
-        }
-
-        function saveLevelsToLocalStorage() {
-            localStorage.setItem('bo4_levels', JSON.stringify(levels));
-        }
-
-        // --- Editor Screen Logic ---
-        function showEditor(id) {
-            homeScreen.classList.add('hidden');
-            editorScreen.classList.remove('hidden');
-            isPlaying = false;
-            modeIndicator.innerText = "mode: editing";
-            updateToolButtons();
-            resetPlayer(); // Reset player position for current level's start
-        }
-
-        function updateToolButtons() {
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.classList.toggle('active', btn.dataset.tool === currentTool);
+        function toggleOpenList() {
+            const container = document.getElementById('level-list-container');
+            container.classList.toggle('hidden');
+            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
+            container.innerHTML = '';
+            Object.keys(saved).forEach(name => {
+                const div = document.createElement('div');
+                div.className = 'level-item';
+                div.innerHTML = `<span>${name}</span><button onclick="loadLevel('${name}')">load</button>`;
+                container.appendChild(div);
             });
         }
 
-        function setTool(t) { 
-            currentTool = t; 
-            updateToolButtons();
-            dragStart = null; // Clear any pending drag for moving platforms
+        function saveLevel() {
+            const name = prompt("name your level:");
+            if(!name) return;
+            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
+            saved[name] = level;
+            localStorage.setItem('bo4_saves', JSON.stringify(saved));
+            alert("saved!");
+        }
+
+        function loadLevel(name) {
+            const saved = JSON.parse(localStorage.getItem('bo4_saves') || '{}');
+            level = saved[name];
+            openEditor();
+        }
+
+        // --- Tools ---
+        function setTool(btn, t) {
+            currentTool = t;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         function togglePlay() {
-            isPlaying = !isPlaying;
-            modeIndicator.innerText = isPlaying ? "mode: playing" : "mode: editing";
-            if (isPlaying) { 
-                player.x = levelData.start.x; 
-                player.y = levelData.start.y - player.h; // Place on top of start block
-                player.vx = 0; player.vy = 0; 
-                camX = player.x - editorCanvas.width / 4;
-            } else {
-                camX = 0; // Reset camera in edit mode
+            mode = (mode === 'edit') ? 'play' : 'edit';
+            document.getElementById('mode-text').innerText = "mode: " + mode;
+            if(mode === 'play') {
+                p.x = level.start.x; p.y = level.start.y;
+                p.vx = 0; p.vy = 0; p.rot = 0;
             }
         }
 
-        function saveCurrentLevel() {
-            if (currentLevelId) {
-                levels[currentLevelId] = JSON.parse(JSON.stringify(levelData)); // Save deep copy
-                saveLevelsToLocalStorage();
-                alert(`level "${currentLevelId}" saved!`);
-            } else {
-                alert("no level loaded. start a new one or open existing.");
-            }
-        }
+        // --- Core Loop ---
+        const keys = {};
+        window.onkeydown = e => keys[e.code] = true;
+        window.onkeyup = e => keys[e.code] = false;
 
-        editorCanvas.addEventListener('mousedown', e => {
-            if (isPlaying) return;
-            const rect = editorCanvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left + camX;
-            const mouseY = e.clientY - rect.top;
-            const gridX = Math.floor(mouseX / GRID_SIZE) * GRID_SIZE;
-            const gridY = Math.floor(mouseY / GRID_SIZE) * GRID_SIZE;
+        function update() {
+            frame++;
+            if(mode === 'play') {
+                if(keys['ArrowLeft'] || keys['KeyA']) p.vx -= 0.8;
+                if(keys['ArrowRight'] || keys['KeyD']) p.vx += 0.8;
+                if((keys['Space'] || keys['ArrowUp'] || keys['KeyW']) && p.jumps > 0 && !p.lock) {
+                    p.vy = -12; p.jumps--; p.lock = true;
+                }
+                if(!(keys['Space'] || keys['ArrowUp'] || keys['KeyW'])) p.lock = false;
 
-            if (currentTool === 'moving') {
-                dragStart = { x: gridX, y: gridY };
-            } else if (currentTool === 'block') {
-                levelData.platforms.push({ x: gridX, y: gridY, w: GRID_SIZE, h: GRID_SIZE, type: 'block' });
-            } else if (currentTool === 'saw') {
-                // Saws are 9x9, so center on the grid point clicked
-                levelData.hazards.push({ type: 'saw', x: gridX + SAW_SIZE/2, y: gridY + SAW_SIZE/2, r: SAW_SIZE/2, rot: 0 });
-            } else if (currentTool === 'spike') {
-                levelData.hazards.push({ type: 'spike', x: gridX, y: gridY, w: GRID_SIZE, rogue: Math.random() < 0.5 ? 0 : -1 }); // Single spike, maybe rogue
-            } else if (currentTool === 'start') {
-                levelData.start = { x: gridX, y: gridY };
-            } else if (currentTool === 'goal') {
-                levelData.goals.push({ x: gridX, y: gridY, w: GRID_SIZE, h: GRID_SIZE });
-            }
-        });
+                p.vx *= 0.85; p.vy += 0.6;
+                p.x += p.vx; p.y += p.vy;
+                p.rot += p.vx * 0.05;
+                camX = p.x - canvas.width/3;
 
-        editorCanvas.addEventListener('mouseup', e => {
-            if (isPlaying || !dragStart) return;
-            const rect = editorCanvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left + camX;
-            const mouseY = e.clientY - rect.top;
-            const gridX = Math.floor(mouseX / GRID_SIZE) * GRID_SIZE;
-            const gridY = Math.floor(mouseY / GRID_SIZE) * GRID_SIZE;
-
-            if (currentTool === 'moving') {
-                levelData.platforms.push({ 
-                    x: dragStart.x, y: dragStart.y, w: GRID_SIZE, h: GRID_SIZE, 
-                    type: 'moving', 
-                    path: [{x: dragStart.x, y: dragStart.y}, {x: gridX, y: gridY}],
-                    pathIndex: 0, pathDir: 1, currentPathX: dragStart.x, currentPathY: dragStart.y
+                // Collisions
+                level.platforms.forEach(plt => {
+                    if(plt.type === 'moving') {
+                        let t = (Math.sin(frame * 0.02) + 1) / 2;
+                        plt.x = plt.x1 + (plt.x2 - plt.x1) * t;
+                        plt.y = plt.y1 + (plt.y2 - plt.y1) * t;
+                    }
+                    if(p.x+30 > plt.x && p.x < plt.x+plt.w && p.y+30 > plt.y && p.y+30 < plt.y+plt.h && p.vy >= 0) {
+                        p.y = plt.y - 30; p.vy = 0; p.jumps = 2;
+                    }
                 });
+
+                level.hazards.forEach(h => {
+                    if(h.type === 'saw') {
+                        if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) togglePlay();
+                    } else if(p.x+25 > h.x && p.x+5 < h.x+40 && p.y+30 > h.y) {
+                        togglePlay();
+                    }
+                });
+
+                level.goals.forEach(g => {
+                    if(p.x+30 > g.x && p.x < g.x+40 && p.y+30 > g.y && p.y < g.y+40) {
+                        alert("you win!"); togglePlay();
+                    }
+                });
+
+                if(p.y > 1000) togglePlay();
+            } else {
+                if(keys['ArrowRight']) camX += 10;
+                if(keys['ArrowLeft']) camX -= 10;
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.save();
+            ctx.translate(-camX, 0);
+
+            // Grid
+            if(mode === 'edit') {
+                ctx.strokeStyle = "rgba(255,255,255,0.05)";
+                for(let x=0; x<5000; x+=GRID) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,canvas.height); ctx.stroke(); }
+            }
+
+            // Platforms
+            level.platforms.forEach(plt => {
+                ctx.fillStyle = plt.type === 'moving' ? "#fb923c" : "#ea580c";
+                ctx.fillRect(plt.x, plt.y, plt.w, plt.h);
+                if(mode === 'edit' && plt.type === 'moving') {
+                    ctx.setLineDash([5,5]); ctx.strokeStyle="white";
+                    ctx.strokeRect(plt.x1, plt.y1, plt.w, plt.h);
+                    ctx.strokeRect(plt.x2, plt.y2, plt.w, plt.h);
+                    ctx.setLineDash([]);
+                }
+            });
+
+            // Hazards
+            level.hazards.forEach(h => {
+                ctx.fillStyle = "#f97316";
+                if(h.type === 'saw') {
+                    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(frame*0.1);
+                    for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-5, -h.r-10, 10, 20); }
+                    ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill(); ctx.restore();
+                } else {
+                    ctx.beginPath(); ctx.moveTo(h.x, h.y+GRID); ctx.lineTo(h.x+GRID/2, h.y); ctx.lineTo(h.x+GRID, h.y+GRID); ctx.fill();
+                }
+            });
+
+            // Start & Goal
+            ctx.fillStyle = "#22c55e"; ctx.fillRect(level.start.x, level.start.y, 10, 10);
+            ctx.fillStyle = "#fbbf24"; level.goals.forEach(g => ctx.fillRect(g.x, g.y, 40, 40));
+
+            // Player
+            if(mode === 'play') {
+                ctx.save(); ctx.translate(p.x+15, p.y+15); ctx.rotate(p.rot);
+                ctx.fillStyle = "#f97316"; ctx.beginPath(); ctx.arc(0,0,15,0,Math.PI*2); ctx.fill();
+                ctx.fillStyle = "#431407"; ctx.fillRect(-8,-5,4,4); ctx.fillRect(4,-5,4,4);
+                ctx.beginPath(); ctx.arc(0,2,6,0.2*Math.PI, 0.8*Math.PI); ctx.stroke(); ctx.restore();
+            }
+
+            // Ghost Preview
+            if(mode === 'edit') {
+                ctx.globalAlpha = 0.4; ctx.fillStyle = "white";
+                let gx = Math.floor(mouseX/GRID)*GRID; let gy = Math.floor(mouseY/GRID)*GRID;
+                ctx.fillRect(gx, gy, GRID, GRID); ctx.globalAlpha = 1;
+            }
+
+            ctx.restore();
+        }
+
+        canvas.onmousedown = e => {
+            if(mode !== 'edit') return;
+            let gx = Math.floor((e.clientX + camX)/GRID)*GRID;
+            let gy = Math.floor(e.clientY/GRID)*GRID;
+            if(currentTool === 'moving') dragStart = {x:gx, y:gy};
+            else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID, type:'block'});
+            else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+GRID/2, y:gy+GRID/2, r:SAW_SIZE/2});
+            else if(currentTool === 'spike') level.hazards.push({type:'spike', x:gx, y:gy});
+            else if(currentTool === 'goal') level.goals.push({x:gx, y:gy, w:GRID, h:GRID});
+            else if(currentTool === 'start') { level.start.x = gx; level.start.y = gy; }
+        }
+
+        canvas.onmouseup = e => {
+            if(currentTool === 'moving' && dragStart) {
+                let gx = Math.floor((e.clientX + camX)/GRID)*GRID;
+                let gy = Math.floor(e.clientY/GRID)*GRID;
+                level.platforms.push({x1:dragStart.x, y1:dragStart.y, x2:gx, y2:gy, x:gx, y:gy, w:GRID, h:GRID, type:'moving'});
                 dragStart = null;
             }
-        });
-
-        let selectedObject = null;
-        editorCanvas.addEventListener('mousemove', e => {
-            if (isPlaying) return;
-            const rect = editorCanvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left + camX;
-            const mouseY = e.clientY - rect.top;
-
-            if (!dragStart) { // Only highlight if not currently dragging for a moving platform
-                selectedObject = getObjectAtMouse(mouseX, mouseY);
-            }
-        });
-
-        function getObjectAtMouse(mouseX, mouseY) {
-            let found = null;
-            // Check hazards
-            levelData.hazards.forEach(h => {
-                let objW = h.type === 'saw' ? SAW_SIZE : GRID_SIZE;
-                let objH = h.type === 'saw' ? SAW_SIZE : GRID_SIZE;
-                let objX = h.type === 'saw' ? h.x - h.r : h.x;
-                let objY = h.type === 'saw' ? h.y - h.r : h.y;
-                if (mouseX > objX && mouseX < objX + objW &&
-                    mouseY > objY && mouseY < objY + objH) {
-                    found = h;
-                }
-            });
-            // Check platforms
-            levelData.platforms.forEach(p => {
-                if (mouseX > p.x && mouseX < p.x + p.w &&
-                    mouseY > p.y && mouseY < p.y + p.h) {
-                    found = p;
-                }
-            });
-            // Check goal
-            levelData.goals.forEach(g => {
-                if (mouseX > g.x && mouseX < g.x + g.w &&
-                    mouseY > g.y && mouseY < g.y + g.h) {
-                    found = g;
-                }
-            });
-            // Check start
-            if (mouseX > levelData.start.x && mouseX < levelData.start.x + GRID_SIZE &&
-                mouseY > levelData.start.y && mouseY < levelData.start.y + GRID_SIZE) {
-                found = levelData.start;
-            }
-            return found;
         }
 
-        function deleteSelectedObject() {
-            if (selectedObject) {
-                if (selectedObject === levelData.start) {
-                    alert("cannot delete the start point.");
-                    return;
-                }
-                levelData.platforms = levelData.platforms.filter(obj => obj !== selectedObject);
-                levelData.hazards = levelData.hazards.filter(obj => obj !== selectedObject);
-                levelData.goals = levelData.goals.filter(obj => obj !== selectedObject);
-                selectedObject = null;
-            }
-        }
+        canvas.onmousemove = e => { mouseX = e.clientX + camX; mouseY = e.clientY; }
 
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = resize;
 
-        // --- Game/Editor Loop ---
-        function resetPlayer() {
-            player.x = levelData.start.x; 
-            player.y = levelData.start.y - player.h;
-            player.vx = 0; player.vy = 0; 
-            player.jumps = 2;
-            player.grounded = false;
-        }
-
-        function updateGameLogic() {
-            if (player.moveLeft) player.vx -= player.speed;
-            if (player.moveRight) player.vx += player.speed;
-
-            player.vx *= 0.88; player.vy += 0.6;
-            player.x += player.vx; player.y += player.vy;
-            player.rot += player.vx * 0.06;
-            camX = player.x - editorCanvas.width / 4;
-
-            player.grounded = false;
-            levelData.platforms.forEach(plat => {
-                if (plat.type === 'moving') {
-                    // Update moving platform position
-                    const currentPos = plat.path[plat.pathIndex];
-                    const targetPos = plat.path[(plat.pathIndex + plat.pathDir + plat.path.length) % plat.path.length];
-                    
-                    const moveSpeed = 2; // Fixed speed for moving platforms
-                    const dist = Math.hypot(targetPos.x - currentPos.x, targetPos.y - currentPos.y);
-
-                    if (dist < moveSpeed) { // Reached target, switch direction/target
-                        plat.pathIndex = (plat.pathIndex + plat.pathDir + plat.path.length) % plat.path.length;
-                        if (plat.pathIndex === 0 && plat.pathDir === -1) plat.pathDir = 1; // loop
-                        if (plat.pathIndex === plat.path.length - 1 && plat.pathDir === 1) plat.pathDir = -1; // loop
-                        plat.currentPathX = targetPos.x;
-                        plat.currentPathY = targetPos.y;
-                    } else {
-                        const angle = Math.atan2(targetPos.y - currentPos.y, targetPos.x - currentPos.x);
-                        plat.currentPathX += Math.cos(angle) * moveSpeed;
-                        plat.currentPathY += Math.sin(angle) * moveSpeed;
-                    }
-                    plat.x = plat.currentPathX;
-                    plat.y = plat.currentPathY;
-                }
-
-                // Player collision with platforms
-                if (player.x + player.w > plat.x && player.x < plat.x + plat.w &&
-                    player.y + player.h > plat.y && player.y + player.h < plat.y + plat.h && player.vy >= 0) {
-                    player.y = plat.y - player.h; player.vy = 0; player.grounded = true; player.jumps = 2;
-                }
-            });
-
-            levelData.hazards.forEach(h => {
-                if (h.type === 'saw') {
-                    h.rot += 0.2;
-                    if (Math.hypot(player.x + player.w/2 - h.x, player.y + player.h/2 - h.y) < h.r + player.w/2) { resetPlayer(); }
-                } else { // spike
-                    for (let i = 0; i < h.w; i += GRID_SIZE) {
-                        let isRogue = (i === h.rogue * GRID_SIZE); // Rogue spike is always the first one for now
-                        let spikeTipY = h.y - (isRogue ? 20 : 10); // Rogue is taller
-                        if (player.x + player.w > h.x + i && player.x < h.x + i + GRID_SIZE && 
-                            player.y + player.h > spikeTipY && player.y < h.y + GRID_SIZE) { 
-                            resetPlayer(); 
-                        }
-                    }
-                }
-            });
-
-            levelData.goals.forEach(g => {
-                if (player.x + player.w > g.x && player.x < g.x + g.w &&
-                    player.y + player.h > g.y && player.y < g.y + g.h) {
-                    alert("level complete! congrats!");
-                    togglePlay(); // Go back to editor
-                }
-            });
-
-            if (player.y > editorCanvas.height + 200) { resetPlayer(); }
-        }
-
-        function drawGameAndEditor() {
-            editorCanvas.width = window.innerWidth;
-            editorCanvas.height = window.innerHeight;
-            editorCtx.clearRect(0, 0, editorCanvas.width, editorCanvas.height);
-            editorCtx.save();
-            editorCtx.translate(-camX, 0);
-
-            // Draw grid in editor mode
-            if (!isPlaying) {
-                editorCtx.strokeStyle = 'rgba(255,255,255,0.1)';
-                for (let x = -camX % GRID_SIZE; x < editorCanvas.width; x += GRID_SIZE) {
-                    editorCtx.beginPath(); editorCtx.moveTo(x, 0); editorCtx.lineTo(x, editorCanvas.height); editorCtx.stroke();
-                }
-                for (let y = 0; y < editorCanvas.height; y += GRID_SIZE) {
-                    editorCtx.beginPath(); editorCtx.moveTo(0, y); editorCtx.lineTo(editorCanvas.width, y); editorCtx.stroke();
-                }
-            }
-
-            // Draw platforms
-            levelData.platforms.forEach(plat => {
-                editorCtx.fillStyle = plat.type === 'moving' ? '#fb923c' : '#ea580c';
-                editorCtx.fillRect(plat.x, plat.y, plat.w, plat.h);
-
-                // Draw moving platform path in editor mode
-                if (!isPlaying && plat.type === 'moving' && plat.path && plat.path.length > 1) {
-                    editorCtx.strokeStyle = 'rgba(255,255,255,0.5)';
-                    editorCtx.lineWidth = 1;
-                    editorCtx.setLineDash([5, 5]);
-                    editorCtx.beginPath();
-                    editorCtx.moveTo(plat.path[0].x + plat.w/2, plat.path[0].y + plat.h/2);
-                    for(let i=1; i<plat.path.length; i++) {
-                        editorCtx.lineTo(plat.path[i].x + plat.w/2, plat.path[i].y + plat.h/2);
-                    }
-                    editorCtx.stroke();
-                    editorCtx.setLineDash([]);
-                }
-            });
-
-            // Draw hazards
-            levelData.hazards.forEach(h => {
-                editorCtx.fillStyle = '#f97316';
-                if (h.type === 'saw') {
-                    editorCtx.save(); editorCtx.translate(h.x, h.y); editorCtx.rotate(h.rot);
-                    editorCtx.beginPath(); editorCtx.arc(0, 0, h.r, 0, Math.PI*2); editorCtx.fill();
-                    for(let i=0; i<8; i++) { editorCtx.rotate(Math.PI/4); editorCtx.fillRect(-4, -h.r - 15, 8, 20); } // Bigger blades for bigger saw
-                    editorCtx.restore();
-                } else { // spike
-                    for(let i=0; i<h.w; i+=GRID_SIZE) {
-                        let isRogue = (i === h.rogue * GRID_SIZE);
-                        editorCtx.beginPath(); editorCtx.moveTo(h.x+i, h.y + GRID_SIZE); 
-                        editorCtx.lineTo(h.x+i+GRID_SIZE/2, h.y-(isRogue ? 20 : 10)); 
-                        editorCtx.lineTo(h.x+i+GRID_SIZE, h.y+GRID_SIZE); editorCtx.fill();
-                    }
-                }
-            });
-
-            // Draw start block
-            editorCtx.fillStyle = '#16a34a'; // Green for start
-            editorCtx.fillRect(levelData.start.x, levelData.start.y, GRID_SIZE, GRID_SIZE);
-
-            // Draw goal blocks
-            levelData.goals.forEach(g => {
-                editorCtx.fillStyle = '#fbbf24';
-                editorCtx.fillRect(g.x, g.y, GRID_SIZE, GRID_SIZE);
-            });
-
-            // Draw player in play mode
-            if (isPlaying) {
-                editorCtx.save();
-                editorCtx.translate(player.x + player.w/2, player.y + player.h/2); editorCtx.rotate(player.rot);
-                editorCtx.fillStyle = '#f97316'; editorCtx.beginPath(); editorCtx.arc(0, 0, player.w/2, 0, Math.PI*2); editorCtx.fill();
-                editorCtx.fillStyle = '#431407'; editorCtx.beginPath(); editorCtx.arc(-6, -4, 2, 0, Math.PI*2); editorCtx.fill();
-                editorCtx.beginPath(); editorCtx.arc(6, -4, 2, 0, Math.PI*2); editorCtx.fill();
-                editorCtx.strokeStyle = '#431407'; editorCtx.lineWidth = 2;
-                editorCtx.beginPath(); editorCtx.arc(0, 2, 8, 0.1 * Math.PI, 0.9 * Math.PI); editorCtx.stroke();
-                editorCtx.restore();
-            }
-
-            // Highlight selected object in editor mode
-            if (!isPlaying && selectedObject) {
-                editorCtx.strokeStyle = '#fde047';
-                editorCtx.lineWidth = 3;
-                if (selectedObject.type === 'saw') {
-                    editorCtx.strokeRect(selectedObject.x - selectedObject.r, selectedObject.y - selectedObject.r, SAW_SIZE, SAW_SIZE);
-                } else if (selectedObject === levelData.start) {
-                    editorCtx.strokeRect(selectedObject.x, selectedObject.y, GRID_SIZE, GRID_SIZE);
-                } else if (selectedObject.w && selectedObject.h) { // generic platform/goal
-                    editorCtx.strokeRect(selectedObject.x, selectedObject.y, selectedObject.w, selectedObject.h);
-                } else if (selectedObject.type === 'spike') {
-                     editorCtx.strokeRect(selectedObject.x, selectedObject.y, selectedObject.w, GRID_SIZE);
-                }
-            }
-
-            // Draw current moving platform drag path
-            if (!isPlaying && dragStart && currentTool === 'moving') {
-                const rect = editorCanvas.getBoundingClientRect();
-                const mouseX = keys['MouseLeft'] ? e.clientX - rect.left + camX : editorCanvas.mouseX + camX; // Get current mouse pos
-                const mouseY = keys['MouseLeft'] ? e.clientY - rect.top : editorCanvas.mouseY;
-
-                editorCtx.strokeStyle = 'rgba(253, 224, 71, 0.8)';
-                editorCtx.lineWidth = 2;
-                editorCtx.setLineDash([8, 8]);
-                editorCtx.beginPath();
-                editorCtx.moveTo(dragStart.x + GRID_SIZE/2, dragStart.y + GRID_SIZE/2);
-                editorCtx.lineTo(Math.floor(mouseX / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2, Math.floor(mouseY / GRID_SIZE) * GRID_SIZE + GRID_SIZE/2);
-                editorCtx.stroke();
-                editorCtx.setLineDash([]);
-            }
-
-            editorCtx.restore();
-        }
-
-        function loop() {
-            if (isPlaying) updateGameLogic();
-            drawGameAndEditor();
-            requestAnimationFrame(loop);
-        }
-
-        // --- Initialization ---
-        showHomeScreen(); // Start on the home screen
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
         loop();
     </script>
 </body>
