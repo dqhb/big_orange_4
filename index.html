@@ -37,11 +37,12 @@
         <div id="editor-ui">
             <div id="mode-text" style="font-weight:bold; margin-bottom:5px; color:#fb923c;">mode: editing</div>
             <div id="editor-tools">
-                <button class="tool-btn active" onclick="setTool(this, 'block')">block</button>
+                <button class="tool-btn" onclick="setTool(this, 'block')">block</button>
+                <button class="tool-btn" onclick="setTool(this, 'tramp')" style="background:#a855f7">tramp</button>
                 <button class="tool-btn" onclick="setTool(this, 'saw')">saw</button>
                 <button class="tool-btn" onclick="setTool(this, 'pusher')">beam</button>
                 <button class="tool-btn" onclick="setTool(this, 'spike')">spike</button>
-                <button class="tool-btn" onclick="setTool(this, 'goal')">end</button>
+                <button class="tool-btn" onclick="setTool(this, 'goal')">goal</button>
                 <button class="tool-btn" onclick="setTool(this, 'start')">start</button>
                 <button class="tool-btn active" onclick="setTool(this, 'select')" style="width:94%; background:#fb923c; margin-top:5px;">edit / move</button>
                 <hr style="border:0; border-top:1px solid #431407; margin: 10px 0;">
@@ -76,7 +77,7 @@
         let currentTool = 'select';
         let camX = 0, camY = 0;
         let selectedObj = null;
-        let level = { platforms: [], hazards: [], goals: [], start: null };
+        let level = { platforms: [], hazards: [], goals: [], start: null, tramps: [] };
         const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0, w: 30, h: 30 };
 
         function startNewLevel() {
@@ -91,7 +92,7 @@
 
         function clearCanvas(force = false) {
             if(!force && level.platforms.length > 0 && !confirm("Wipe the whole level?")) return;
-            level = { platforms: [], hazards: [], goals: [], start: null };
+            level = { platforms: [], hazards: [], goals: [], start: null, tramps: [] };
             selectedObj = null;
             document.getElementById('inspector').classList.add('hidden');
         }
@@ -107,6 +108,7 @@
             if (!code) return;
             try {
                 level = JSON.parse(atob(code));
+                if(!level.tramps) level.tramps = [];
                 isSharedMode = true;
                 document.getElementById('home-screen').classList.add('hidden');
                 document.getElementById('editor-screen').style.display = 'block';
@@ -156,6 +158,7 @@
         function loadLevel(name) {
             const saves = JSON.parse(localStorage.getItem('bo4_levels') || '{}');
             level = saves[name];
+            if(!level.tramps) level.tramps = [];
             isSharedMode = false;
             document.getElementById('editor-tools').classList.remove('hidden');
             document.getElementById('home-screen').classList.add('hidden');
@@ -184,6 +187,7 @@
             level.platforms = level.platforms.filter(o => o !== selectedObj);
             level.hazards = level.hazards.filter(o => o !== selectedObj);
             level.goals = level.goals.filter(o => o !== selectedObj);
+            level.tramps = level.tramps.filter(o => o !== selectedObj);
             if(level.start === selectedObj) level.start = null;
             selectedObj = null;
             document.getElementById('inspector').classList.add('hidden');
@@ -195,7 +199,7 @@
             const spd = parseInt(document.getElementById('speed-range').value) / 100;
             if(selectedObj.w !== undefined) { selectedObj.w = s; selectedObj.h = s; }
             if(selectedObj.r !== undefined) { selectedObj.r = s / 2; }
-            if(selectedObj.type !== 'spike') { selectedObj.speed = spd; }
+            if(selectedObj.type !== 'spike' && selectedObj.type !== 'tramp') { selectedObj.speed = spd; }
         }
 
         const keys = {};
@@ -226,6 +230,13 @@
                     if(p.x+p.w > plt.x && p.x < plt.x+plt.w && p.y+p.h > plt.y && p.y+p.h < plt.y+plt.h && p.vy >= 0) { p.y = plt.y - p.h; p.vy = 0; p.jumps = 2; }
                 });
 
+                level.tramps.forEach(t => {
+                    if(p.x+p.w > t.x && p.x < t.x+t.w && p.y+p.h > t.y && p.y < t.y+t.h) {
+                        p.vy = -18; 
+                        p.jumps = 1;
+                    }
+                });
+
                 level.hazards.forEach(h => {
                     if(h.type !== 'spike') h.angle = (h.angle || 0) + (h.speed || 0.05);
                     if(h.type === 'saw') { if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) p.x = level.start.x, p.y = level.start.y; }
@@ -253,6 +264,12 @@
             level.platforms.forEach(plt => {
                 ctx.fillStyle = "#ea580c"; ctx.fillRect(plt.x, plt.y, plt.w, plt.h);
                 if(plt === selectedObj) { ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.strokeRect(plt.x, plt.y, plt.w, plt.h); }
+            });
+
+            level.tramps.forEach(t => {
+                ctx.fillStyle = "#a855f7"; ctx.fillRect(t.x, t.y, t.w, t.h);
+                ctx.fillStyle = "#d8b4fe"; ctx.fillRect(t.x, t.y, t.w, 10);
+                if(t === selectedObj) { ctx.strokeStyle = "white"; ctx.lineWidth = 3; ctx.strokeRect(t.x, t.y, t.w, t.h); }
             });
 
             level.hazards.forEach(h => {
@@ -286,13 +303,14 @@
             let gx = Math.floor((e.clientX + camX)/GRID)*GRID;
             let gy = Math.floor((e.clientY + camY)/GRID)*GRID;
             if(currentTool === 'select') {
-                selectedObj = [...level.platforms, ...level.hazards, ...level.goals, level.start].find(o => o && (Math.hypot(gx - (o.x+(o.w/2||GRID/2)), gy - (o.y+(o.h/2||GRID/2))) < GRID || (gx >= o.x && gx < o.x+(o.w||GRID) && gy >= o.y && gy < o.y+(o.h||GRID))));
+                selectedObj = [...level.platforms, ...level.hazards, ...level.goals, ...level.tramps, level.start].find(o => o && (Math.hypot(gx - (o.x+(o.w/2||GRID/2)), gy - (o.y+(o.h/2||GRID/2))) < GRID || (gx >= o.x && gx < o.x+(o.w||GRID) && gy >= o.y && gy < o.y+(o.h||GRID))));
                 if(selectedObj) { 
                     document.getElementById('inspector').classList.remove('hidden'); 
                     document.getElementById('scale-range').value = selectedObj.w || (selectedObj.r*2) || GRID;
-                    document.getElementById('speed-controls').style.display = (selectedObj.type === 'spike') ? 'none' : 'block';
+                    document.getElementById('speed-controls').style.display = (selectedObj.type === 'spike' || selectedObj.type === 'tramp') ? 'none' : 'block';
                 }
             } else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID});
+            else if(currentTool === 'tramp') level.tramps.push({type:'tramp', x:gx, y:gy, w:GRID, h:GRID});
             else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+20, y:gy+20, r:25, angle:0, speed:0.06});
             else if(currentTool === 'pusher') level.hazards.push({type:'pusher', x:gx+20, y:gy+20, r:120, angle:0, speed:0.03});
             else if(currentTool === 'spike') level.hazards.push({type:'spike', x:gx+20, y:gy+20});
