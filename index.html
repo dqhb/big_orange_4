@@ -53,8 +53,10 @@
             <div id="inspector" class="inspector hidden">
                 <div>size</div>
                 <input type="range" id="scale-range" min="20" max="600" value="40" oninput="updateSelected()">
-                <div>speed</div>
-                <input type="range" id="speed-range" min="-20" max="20" value="5" oninput="updateSelected()">
+                <div id="speed-controls">
+                    <div>speed</div>
+                    <input type="range" id="speed-range" min="-20" max="20" value="5" oninput="updateSelected()">
+                </div>
                 <button class="tool-btn del-btn full-width" onclick="deleteObj()">delete object</button>
             </div>
             
@@ -78,7 +80,7 @@
         const p = { x: 0, y: 0, vx: 0, vy: 0, jumps: 0, rot: 0, w: 30, h: 30 };
 
         function startNewLevel() {
-            clearCanvas();
+            clearCanvas(true);
             isSharedMode = false;
             document.getElementById('editor-tools').classList.remove('hidden');
             document.getElementById('home-screen').classList.add('hidden');
@@ -87,8 +89,8 @@
             resize();
         }
 
-        function clearCanvas() {
-            if(level.platforms.length > 0 && !confirm("Wipe the whole level?")) return;
+        function clearCanvas(force = false) {
+            if(!force && level.platforms.length > 0 && !confirm("Wipe the whole level?")) return;
             level = { platforms: [], hazards: [], goals: [], start: null };
             selectedObj = null;
             document.getElementById('inspector').classList.add('hidden');
@@ -138,13 +140,7 @@
             keys.forEach(k => {
                 const div = document.createElement('div');
                 div.className = 'level-item';
-                div.innerHTML = `
-                    <span style="font-weight:bold">${k}</span>
-                    <div>
-                        <button onclick="loadLevel('${k}')" style="margin-right:5px">load</button>
-                        <button class="del-btn" onclick="deleteSavedLevel('${k}')">X</button>
-                    </div>
-                `;
+                div.innerHTML = `<span style="font-weight:bold">${k}</span><div><button onclick="loadLevel('${k}')" style="margin-right:5px">load</button><button class="del-btn" onclick="deleteSavedLevel('${k}')">X</button></div>`;
                 container.appendChild(div);
             });
         }
@@ -199,7 +195,7 @@
             const spd = parseInt(document.getElementById('speed-range').value) / 100;
             if(selectedObj.w !== undefined) { selectedObj.w = s; selectedObj.h = s; }
             if(selectedObj.r !== undefined) { selectedObj.r = s / 2; }
-            if(selectedObj.speed !== undefined) { selectedObj.speed = spd; }
+            if(selectedObj.type !== 'spike') { selectedObj.speed = spd; }
         }
 
         const keys = {};
@@ -231,20 +227,18 @@
                 });
 
                 level.hazards.forEach(h => {
-                    h.angle = (h.angle || 0) + (h.speed || 0.05);
+                    if(h.type !== 'spike') h.angle = (h.angle || 0) + (h.speed || 0.05);
                     if(h.type === 'saw') { if(Math.hypot(p.x+15-h.x, p.y+15-h.y) < h.r + 10) p.x = level.start.x, p.y = level.start.y; }
                     else if(h.type === 'pusher') {
                         let rx = (p.x+15-h.x) * Math.cos(h.angle) + (p.y+15-h.y) * Math.sin(h.angle);
                         let ry = -(p.x+15-h.x) * Math.sin(h.angle) + (p.y+15-h.y) * Math.cos(h.angle);
                         if(Math.abs(rx) < h.r && Math.abs(ry) < 15) p.x = level.start.x, p.y = level.start.y;
                     } else if(h.type === 'spike') {
-                        if(p.x+25 > h.x && p.x+5 < h.x+GRID && p.y+p.h > h.y+10 && p.y < h.y+GRID) p.x = level.start.x, p.y = level.start.y;
+                        if(p.x+25 > h.x-20 && p.x+5 < h.x+20 && p.y+p.h > h.y-10 && p.y < h.y+20) p.x = level.start.x, p.y = level.start.y;
                     }
                 });
 
-                level.goals.forEach(g => {
-                    if(p.x+p.w > g.x && p.x < g.x+GRID && p.y+p.h > g.y && p.y < g.y+GRID) { alert("victory!"); exitToMenu(); }
-                });
+                level.goals.forEach(g => { if(p.x+p.w > g.x && p.x < g.x+GRID && p.y+p.h > g.y && p.y < g.y+GRID) { alert("victory!"); exitToMenu(); } });
                 if(p.y > camY + canvas.height + 1000) p.x = level.start.x, p.y = level.start.y;
             } else {
                 if(keys['ArrowRight']) camX += 12; if(keys['ArrowLeft']) camX -= 12;
@@ -262,14 +256,14 @@
             });
 
             level.hazards.forEach(h => {
-                ctx.save(); ctx.translate(h.x, h.y); if(h.angle) ctx.rotate(h.angle);
+                ctx.save(); ctx.translate(h.x, h.y); if(h.angle && h.type !== 'spike') ctx.rotate(h.angle);
                 ctx.fillStyle = "#f97316";
                 if(h.type === 'saw') {
                     for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-6, -h.r-12, 12, 24); }
                     ctx.beginPath(); ctx.arc(0,0,h.r,0,Math.PI*2); ctx.fill();
                 } else if(h.type === 'pusher') {
                     ctx.fillStyle = "#fde047"; ctx.fillRect(-h.r, -10, h.r*2, 20);
-                } else {
+                } else if(h.type === 'spike') {
                     ctx.beginPath(); ctx.moveTo(-20, 20); ctx.lineTo(0, -20); ctx.lineTo(20, 20); ctx.fill();
                 }
                 ctx.restore();
@@ -293,7 +287,11 @@
             let gy = Math.floor((e.clientY + camY)/GRID)*GRID;
             if(currentTool === 'select') {
                 selectedObj = [...level.platforms, ...level.hazards, ...level.goals, level.start].find(o => o && (Math.hypot(gx - (o.x+(o.w/2||GRID/2)), gy - (o.y+(o.h/2||GRID/2))) < GRID || (gx >= o.x && gx < o.x+(o.w||GRID) && gy >= o.y && gy < o.y+(o.h||GRID))));
-                if(selectedObj) { document.getElementById('inspector').classList.remove('hidden'); document.getElementById('scale-range').value = selectedObj.w || (selectedObj.r*2) || GRID; }
+                if(selectedObj) { 
+                    document.getElementById('inspector').classList.remove('hidden'); 
+                    document.getElementById('scale-range').value = selectedObj.w || (selectedObj.r*2) || GRID;
+                    document.getElementById('speed-controls').style.display = (selectedObj.type === 'spike') ? 'none' : 'block';
+                }
             } else if(currentTool === 'block') level.platforms.push({x:gx, y:gy, w:GRID, h:GRID});
             else if(currentTool === 'saw') level.hazards.push({type:'saw', x:gx+20, y:gy+20, r:25, angle:0, speed:0.06});
             else if(currentTool === 'pusher') level.hazards.push({type:'pusher', x:gx+20, y:gy+20, r:120, angle:0, speed:0.03});
