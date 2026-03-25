@@ -14,7 +14,8 @@
     <div id="ui">
         <div id="room-id">room: 1 / 100</div>
         <div>deaths: <span id="deaths">0</span></div>
-        <div style="margin-top: 10px; opacity: 0.8;">space: double jump | r: reset</div>
+        <div style="margin-top: 10px; opacity: 0.8;">w/space: double jump | r: reset</div>
+        <div style="opacity: 0.001;">n: skip room</div>
     </div>
     <canvas id="g"></canvas>
 
@@ -30,7 +31,7 @@
 
         const p = {
             x: 50, y: 300, w: 30, h: 30,
-            vx: 0, vy: 0, speed: 0.7, jump: 11.5,
+            vx: 0, vy: 0, speed: 0.75, jump: 12.5, // buffed jump slightly
             rot: 0, jumps: 2, grounded: false,
             moveLeft: false, moveRight: false
         };
@@ -39,39 +40,35 @@
         let hazards = [];
         let goalX = 2000;
 
-        // the 100-level architect
         function buildLevel(n) {
             platforms = [];
             hazards = [];
             p.x = 60; p.y = 300; p.vx = 0; p.vy = 0;
             roomEl.innerText = `room: ${n} / 100`;
 
-            // fixed starting floor
-            platforms.push({ x: 0, y: 500, w: 160, h: 400 });
+            platforms.push({ x: 0, y: 500, w: 160, h: 500 });
 
-            // deterministic design for all 100 rooms
-            // uses n to shift coordinates so every level is "pre-made" and different
             for (let i = 1; i <= 6; i++) {
-                let x = i * (220 + (n % 5 * 10)); // varying gaps
-                let y = 450 - (Math.sin(n * i) * 100) - (i * 20); 
-                let w = 70 + (n % 3 * 20);
+                // fixed gap logic: max gap is now 240, which is double-jumpable
+                let gap = 180 + (Math.abs(Math.sin(n * i)) * 60); 
+                let prevPlat = platforms[i-1];
+                let x = prevPlat.x + prevPlat.w + gap;
                 
-                // ensure it's not "impossible" - cap the height and gaps
-                y = Math.max(150, Math.min(y, 550));
+                // floor height is more predictable now
+                let y = 450 - (Math.sin(n + i) * 80) - (i * 10);
+                let w = 70 + (n % 4 * 15);
                 
                 platforms.push({ x, y, w, h: 30 });
 
-                // hazard placement
                 if ((n + i) % 4 === 0) {
-                    hazards.push({ type: 'saw', x: x + w/2, y: y - 45, r: 18, rot: 0 });
+                    hazards.push({ type: 'saw', x: x + w/2, y: y - 40, r: 18, rot: 0 });
                 } else if ((n + i) % 3 === 0) {
-                    // rogue spike logic: random index in the row is taller
                     let rogueIdx = Math.floor((n * i) % (w / 15));
                     hazards.push({ type: 'spike', x: x, y: y - 10, w: w, rogue: rogueIdx });
                 }
             }
 
-            goalX = 1700;
+            goalX = platforms[platforms.length-1].x + 200;
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
@@ -87,6 +84,10 @@
                 }
             }
             if (e.code === 'KeyR') reset();
+            if (e.code === 'KeyN') { // skip room
+                currentRoom++;
+                buildLevel(currentRoom);
+            }
         };
 
         window.onkeyup = e => {
@@ -103,8 +104,8 @@
         function update() {
             if (p.moveLeft) p.vx -= p.speed;
             if (p.moveRight) p.vx += p.speed;
-            p.vx *= 0.9;
-            p.vy += 0.55;
+            p.vx *= 0.88;
+            p.vy += 0.6; // gravity
             p.x += p.vx;
             p.y += p.vy;
             p.rot += p.vx * 0.06;
@@ -127,10 +128,8 @@
                     let dy = (p.y + 15) - h.y;
                     if (Math.sqrt(dx*dx + dy*dy) < h.r + 10) reset();
                 } else {
-                    // spike collision (including rogue tall spike)
                     for (let i = 0; i < h.w; i += 15) {
                         let isRogue = (i / 15) === h.rogue;
-                        let sH = isRogue ? 25 : 12;
                         if (p.x + p.w > h.x + i && p.x < h.x + i + 15 && 
                             p.y + p.h > h.y - (isRogue ? 15 : 0) && p.y < h.y + 10) reset();
                     }
@@ -150,27 +149,18 @@
             ctx.save();
             ctx.translate(-p.x + 200, 0);
 
-            // platforms
             ctx.fillStyle = '#ea580c';
             platforms.forEach(plat => ctx.fillRect(plat.x, plat.y, plat.w, plat.h));
 
-            // goal
             ctx.fillStyle = '#fb923c';
-            ctx.fillRect(goalX, 100, 60, 500);
+            ctx.fillRect(goalX, 100, 60, 600);
 
-            // hazards
             hazards.forEach(h => {
                 ctx.fillStyle = '#f97316';
                 if (h.type === 'saw') {
-                    ctx.save();
-                    ctx.translate(h.x, h.y);
-                    ctx.rotate(h.rot);
-                    for(let i=0; i<8; i++) {
-                        ctx.rotate(Math.PI/4);
-                        ctx.fillRect(-2, -h.r - 8, 4, 12);
-                    }
-                    ctx.beginPath(); ctx.arc(0,0, h.r, 0, Math.PI*2); ctx.fill();
-                    ctx.restore();
+                    ctx.save(); ctx.translate(h.x, h.y); ctx.rotate(h.rot);
+                    for(let i=0; i<8; i++) { ctx.rotate(Math.PI/4); ctx.fillRect(-2, -h.r - 8, 4, 12); }
+                    ctx.beginPath(); ctx.arc(0,0, h.r, 0, Math.PI*2); ctx.fill(); ctx.restore();
                 } else {
                     for(let i=0; i<h.w; i+=15) {
                         let isRogue = (i / 15) === h.rogue;
@@ -183,7 +173,6 @@
                 }
             });
 
-            // smiling orange
             ctx.save();
             ctx.translate(p.x + 15, p.y + 15);
             ctx.rotate(p.rot);
@@ -192,20 +181,14 @@
             ctx.fillStyle = '#431407';
             ctx.beginPath(); ctx.arc(-6, -4, 2, 0, Math.PI*2); ctx.fill();
             ctx.beginPath(); ctx.arc(6, -4, 2, 0, Math.PI*2); ctx.fill();
-            ctx.strokeStyle = '#431407';
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#431407'; ctx.lineWidth = 2;
             ctx.beginPath(); ctx.arc(0, 2, 8, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
             ctx.restore();
 
             ctx.restore();
         }
 
-        function loop() {
-            update();
-            draw();
-            requestAnimationFrame(loop);
-        }
-
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
         buildLevel(1);
         loop();
     </script>
