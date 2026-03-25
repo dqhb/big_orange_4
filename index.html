@@ -87,11 +87,11 @@
         function getGameCode() {
             const code = btoa(JSON.stringify(level));
             navigator.clipboard.writeText(code);
-            alert("Level code copied to clipboard! Send it to a friend.");
+            alert("level code copied to clipboard");
         }
 
         function enterGameCode() {
-            const code = prompt("Paste the game code here:");
+            const code = prompt("paste the game code here:");
             if (!code) return;
             try {
                 level = JSON.parse(atob(code));
